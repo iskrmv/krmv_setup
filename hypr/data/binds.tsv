@@ -1,0 +1,22 @@
+# id	keys	description	command      (tab separated). Change a shortcut with SUPER + P > Keyboard shortcuts, or edit this file.
+terminal	SUPER + Return	Terminal	sh ~/.config/hypr/scripts/open-default.sh terminal
+launcher	ALT + space	App launcher	rofi -show drun
+files	SUPER + E	File manager	sh ~/.config/hypr/scripts/open-default.sh files
+browser	SUPER + B	Web browser	sh ~/.config/hypr/scripts/open-default.sh browser
+settings	SUPER + P	Settings: default apps, shortcuts, widgets	sh ~/.config/hypr/scripts/settings.sh
+clipboard	SUPER + V	Clipboard history	sh ~/.config/hypr/scripts/clipboard.sh
+emoji	SUPER + period	Emoji picker	sh ~/.config/hypr/scripts/emoji.sh
+shot-region	SUPER + SHIFT + S	Screenshot: select an area	sh ~/.config/hypr/scripts/screenshot.sh region
+shot-monitor	Print	Screenshot: focused monitor, instantly	sh ~/.config/hypr/scripts/screenshot.sh monitor
+shot-all	CTRL + Print	Screenshot: all monitors, instantly	sh ~/.config/hypr/scripts/screenshot.sh all
+shot-window	CTRL + SHIFT + Print	Screenshot: focused window, instantly	sh ~/.config/hypr/scripts/screenshot.sh window
+wallpaper	SUPER + W	Next wallpaper	sh ~/.config/hypr/scripts/wallpaper.sh next
+widgets	SUPER + SHIFT + W	Edit desktop widgets: move or hide	qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call widgets move
+cheatsheet	SUPER + slash	Show all shortcuts	sh ~/.config/hypr/scripts/keys.sh
+reload	SUPER + R	Reload the Hyprland config	hyprctl reload && notify-send 'Hyprland' 'Config reloaded'
+lock	SUPER + L	Lock screen	pidof hyprlock || hyprlock
+logout	SUPER + SHIFT + E	Log out	command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'
+kill	SUPER + K	Force kill the focused app	sh ~/.config/hypr/scripts/kill-active.sh
+calculator	XF86Calculator	Calculator key: Arithmetic	arithmetic
+omen2	XF86Launch2	HP Omen key: terminal	sh ~/.config/hypr/scripts/open-default.sh terminal
+omen1	XF86Launch1	Launch key 1: terminal	sh ~/.config/hypr/scripts/open-default.sh terminal

@@ -1,0 +1,11 @@
+[SddmGreeterTheme]
+Name=krmv-tokyo
+Description=Tokyo Night SDDM theme (same colors as the Hyprland/Quickshell bar)
+Author=krmv
+Version=1.0
+Type=sddm-theme
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=krmv-tokyo
+Theme-API=2.0
+QtVersion=6

@@ -1,0 +1,78 @@
+# ~/.zshrc - managed by krmv-setup (installed by install.sh, edit it in the repo: zsh/zshrc)
+
+# fastfetch greets you when a terminal opens. It must run BEFORE the powerlevel10k instant prompt below.
+if [[ -o interactive && -z "$FASTFETCH_DONE" ]] && (( $+commands[fastfetch] )); then
+  fastfetch
+  export FASTFETCH_DONE=1      # nested shells (nvim terminal, tmux panes) do not repeat it
+fi
+
+# Powerlevel10k instant prompt. Keep this block (after the greeting) at the very top of the file.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# ---- History and shell options ----
+HISTFILE=~/.histfile
+HISTSIZE=10000
+SAVEHIST=10000
+setopt autocd extendedglob nomatch notify
+setopt hist_ignore_all_dups share_history inc_append_history
+
+# ---- oh-my-zsh (used when installed, the file also works without it) ----
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME=""                                  # the prompt is powerlevel10k, loaded below
+zstyle ':omz:update' mode disabled            # no update questions (they break the instant prompt)
+plugins=(git sudo extract)
+if [[ -r "$ZSH/oh-my-zsh.sh" ]]; then
+  source "$ZSH/oh-my-zsh.sh"                  # runs compinit for us
+else
+  autoload -Uz compinit && compinit
+fi
+
+# ---- Key bindings (emacs style: Alt+Backspace deletes a word, Ctrl+A / Ctrl+E jump to the line start / end) ----
+bindkey -e                                    # loaded after oh-my-zsh so nothing can switch it to vi mode
+
+# Ctrl/Alt + arrows, Home/End/Delete (raw terminal codes, so they work in kitty and everywhere else)
+bindkey '^[[1;5C' forward-word                          # Ctrl+Right
+bindkey '^[[1;5D' backward-word                         # Ctrl+Left
+bindkey '^[[1;3C' forward-word                          # Alt+Right
+bindkey '^[[1;3D' backward-word                         # Alt+Left
+bindkey '^[[1;5A' history-beginning-search-backward     # Ctrl+Up   (history entries starting with what you typed)
+bindkey '^[[1;5B' history-beginning-search-forward      # Ctrl+Down
+bindkey '^[[1;3A' history-beginning-search-backward     # Alt+Up
+bindkey '^[[1;3B' history-beginning-search-forward      # Alt+Down
+bindkey '^[[H'    beginning-of-line                     # Home
+bindkey '^[[F'    end-of-line                           # End
+bindkey '^[[1~'   beginning-of-line
+bindkey '^[[4~'   end-of-line
+bindkey '^[[3~'   delete-char                           # Delete
+bindkey '^[[3;5~' kill-word                             # Ctrl+Delete
+bindkey '^[^?'    backward-kill-word                    # Alt+Backspace
+bindkey '^H'      backward-kill-word                    # Ctrl+Backspace
+
+# ---- Powerlevel10k prompt ----
+if [[ -r /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme ]]; then
+  source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+fi
+# To customize the prompt run `p10k configure` or edit ~/.p10k.zsh.
+[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+
+# ---- Aliases ----
+alias pacman='sudo pacman'
+alias yoink='yay -S'       # install
+alias yeet='yay -Rns'      # remove (with dependencies and config files)
+alias yago='yay -Ss'       # search
+alias sweep='bash ~/.config/hypr/scripts/cleanup.sh'   # deep clean: pacman/yay caches, orphans, logs (sweep --all = everything)
+alias sudogui='sh ~/.config/hypr/scripts/sudogui.sh'   # run GUI apps as root, e.g. sudogui ventoygui
+alias winfo='sh ~/.config/hypr/scripts/window-info.sh'   # sizes and positions of all windows (for bug reports)
+alias vim='nvim'
+export EDITOR=nvim VISUAL=nvim
+# the same aliases for bash and fish live in ~/.config/hypr/shell/aliases.sh
+
+# ---- Plugins ----
+[[ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
+  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# zsh-syntax-highlighting must be loaded LAST
+[[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
+  source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

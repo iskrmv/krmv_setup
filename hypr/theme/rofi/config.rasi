@@ -1,0 +1,80 @@
+/* ~/.config/hypr/theme/rofi/config.rasi - Tokyo Night, square corners, matches the bar */
+configuration {
+    modi: "drun";
+    show-icons: true;
+    font: "JetBrainsMono Nerd Font 12";
+    display-drun: "Apps";
+    display-run: "Run";
+    display-window: "Windows";
+    drun-display-format: "{name}";
+}
+
+* {
+    bg:      #1a1b26;
+    bg-alt:  #1f2335;
+    fg:      #a9b1d6;
+    muted:   #444b6a;
+    dim:     #787c99;
+    bright:  #c0caf5;
+    accent:  #0db9d7;
+    urgent:  #f7768e;
+
+    background-color: transparent;
+    text-color: @fg;
+    margin: 0;
+    padding: 0;
+    spacing: 0;
+}
+
+window {
+    location: center;
+    width: 560px;
+    background-color: @bg;
+    border: 1px;
+    border-color: @muted;
+    border-radius: 0;
+}
+
+mainbox {
+    padding: 12px;
+    spacing: 10px;
+    children: [ inputbar, listview ];
+}
+
+inputbar {
+    background-color: @bg-alt;
+    border: 1px;
+    border-color: @muted;
+    padding: 10px 12px;
+    spacing: 10px;
+    children: [ prompt, entry ];
+}
+
+prompt { text-color: @accent; }
+
+entry {
+    text-color: @bright;
+    placeholder: "Search...";
+    placeholder-color: @dim;
+}
+
+listview {
+    lines: 8;
+    columns: 1;
+    fixed-height: true;
+    scrollbar: false;
+    spacing: 2px;
+}
+
+element {
+    padding: 8px 10px;
+    spacing: 10px;
+}
+
+element normal.normal   { background-color: transparent; text-color: @fg; }
+element alternate.normal { background-color: transparent; text-color: @fg; }
+element selected.normal { background-color: @bg-alt; text-color: @accent; }
+element normal.urgent, element selected.urgent { text-color: @urgent; }
+
+element-icon { size: 24px; vertical-align: 0.5; }
+element-text { vertical-align: 0.5; text-color: inherit; }

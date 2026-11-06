@@ -1,0 +1,20 @@
+SUPER + Q              Close window
+SUPER + F              Fullscreen
+SUPER + T              Toggle floating
+SUPER + Arrow keys     Move focus
+SUPER + SHIFT + Arrows Move window
+SUPER + 1 ... 0        Go to workspace 1-10
+SUPER + SHIFT + 1...0  Move window to workspace 1-10
+SUPER + left drag      Move window
+SUPER + right drag     Resize window
+4-finger swipe L / R   Switch workspace (touchpad)
+ALT + SHIFT            Switch keyboard layout (English / Russian)
+Volume keys            Volume up / down / mute
+Brightness keys        Brightness up / down
+Media keys             Play / pause / next / previous (an info box shows what happened)
+Touchpad key           Touchpad on / off (an info box shows the state)
+Power icon (bar)       Power menu: lock, log out, sleep, reboot, power off
+Bar: hover icons       CPU / RAM / disk details, volume + brightness sliders
+Bar: arrow in sliders  Volume: one slider per app. Brightness: night mode
+Bar: media widget      Back / play / next; hover for the seek slider
+Bar: click icons       Wi-Fi and Bluetooth panels, tray app windows
