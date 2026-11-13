@@ -11,6 +11,10 @@ alias winfo 'sh ~/.config/hypr/scripts/window-info.sh'
 # fastfetch greets you when a terminal opens
 if status is-interactive; and command -sq fastfetch
     function fish_greeting
-        fastfetch
+        if test -f ~/.config/hypr/scripts/fetch.sh
+            sh ~/.config/hypr/scripts/fetch.sh
+        else
+            fastfetch
+        end
     end
 end

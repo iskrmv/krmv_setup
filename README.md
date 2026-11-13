@@ -4,7 +4,7 @@ My complete Arch Linux desktop in **one command**: Hyprland, a Quickshell bar wi
 a lock screen, an SDDM login theme and a zsh setup. Everything uses the same Tokyo Night colors and square corners.
 
 ```bash
-git clone https://github.com/<your-username>/krmv-setup.git
+git clone https://github.com/iskrmv/krmv-setup.git
 cd krmv-setup
 bash install.sh
 ```
@@ -22,9 +22,11 @@ Reboot afterwards and choose the **Hyprland** session in SDDM.
 | **On-screen display** | Volume and brightness changes (Fn keys, scroll, sliders) show a small level indicator at the bottom center. It shows "Muted" when muted |
 | **Media** | Any player that speaks MPRIS (Spotify, VLC, mpv, YouTube / Netflix / music in Chrome or Firefox): back / play-pause / next, the title and the time between the launcher and the clock. Hover for the full info and a seek slider |
 | **Volume mixer** | Hover the volume icon: master slider; click the small arrow (bottom right) for one slider and mute per app. Every app with an audio stream is listed (Steam, Telegram, Discord, browsers...). Running apps that are silent at the moment are listed too, and their slider works: the volume is remembered and applied when the app starts making sound |
-| **Settings** | `SUPER + P` opens a rofi settings menu: **default apps** (browser, file manager, terminal, editor, video, music, images, PDF), a **keyboard shortcut editor**, desktop widgets and night mode. Everyone can pick their own apps and keys |
+| **Settings** | `SUPER + I` (or type "settings" in the app launcher) opens a rofi settings menu: **default apps** (browser, file manager, terminal, editor, video, music, images, PDF), a **keyboard shortcut editor**, desktop widgets and night mode. Everyone can pick their own apps and keys |
 | **Default apps** | `SUPER + E` opens your default file manager (yazi by default), `SUPER + B` your default browser, `SUPER + Return` your default terminal |
-| **Info boxes** | Volume and brightness, media keys (play / pause / track change) and the touchpad key show a small box at the bottom center, like Windows |
+| **Info boxes** | Volume and brightness, the media keys (play / pause / next / previous) and the touchpad key show a small box at the bottom center, like Windows. The media box appears only for the keys, not when you click inside a player |
+| **Clock app** | Timer, alarms (with days and labels) and a stopwatch. Click the clock in the bar or press `SUPER + C`. An alarm or a finished timer rings with a sound and a window (Enter dismisses, S snoozes 5 minutes). Alarms and the running timer are remembered after a restart |
+| **Images** | [swayimg](https://github.com/artemsen/swayimg) is the default image viewer: light, native Wayland, opens nearly every format (PNG, JPEG, GIF, WebP, AVIF, HEIC, JXL, SVG, TIFF, RAW...). Choose another one in Settings |
 | **Night mode** | Open the brightness popup and click its small arrow: a night mode switch (blue light filter, `hyprsunset`) |
 | **Terminal greeting** | `fastfetch` with the Tokyo Night theme greets you in zsh, bash and fish |
 | **Keyboard** | English + Russian layouts, `ALT + SHIFT` switches them, the bar shows the current one (click it to switch). Also set for the SDDM login screen |
@@ -57,7 +59,8 @@ Press **SUPER + /** at any time to see this list on screen.
 | `Print` | Screenshot: the focused monitor, instantly |
 | `CTRL + Print` | Screenshot: all monitors, instantly |
 | `CTRL + SHIFT + Print` | Screenshot: the focused window, instantly |
-| `SUPER + P` | Settings (default apps, shortcuts, widgets) |
+| `SUPER + I` | Settings (default apps, shortcuts, widgets) |
+| `SUPER + C` | Clock app: timer, alarm, stopwatch (also: click the clock in the bar) |
 | `SUPER + B` | Default web browser |
 | `SUPER + W` | Next wallpaper |
 | `SUPER + SHIFT + W` | Move the desktop clock (drag it, Enter saves, R resets, Esc cancels). Double-clicking the clock does the same |
@@ -137,7 +140,7 @@ zsh/zshrc               -> ~/.zshrc
 
 ## Changing shortcuts and default apps
 
-Press `SUPER + P`:
+Press `SUPER + I`:
 - **Default apps**: pick the app for each job (the list shows every installed app that can do it).
 - **Keyboard shortcuts**: pick a shortcut and type the new keys, for example `SUPER + SHIFT + T`. It rejects invalid
   combinations and keys that are already used. Your changes are saved in `~/.local/state/krmv-setup/binds.user.tsv`
@@ -204,8 +207,15 @@ the lock screen is waiting when you open the lid. With an external monitor conne
 - **Emoji look like empty boxes:** `fc-list | grep -i "noto color emoji"`, install `noto-fonts-emoji`
 - **SDDM theme preview:** `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/krmv-tokyo`
 
+## License
+
+The code in this repository is released under the [MIT License](LICENSE): use it, change it, share it.
+Not covered by it:
+- the wallpapers in `hypr/wallpapers/` belong to their authors;
+- the Anurati font is not stored here: `install.sh` downloads it from the original KDE Modern Clock repository;
+- the desktop clock only imitates the look of KDE's [Modern Clock](https://store.kde.org/p/2135653) (GPL-3.0), no code was copied.
+
 ## Notes
 
 - Built for Arch Linux. Needs Hyprland with the Lua config (0.55 or newer) and Quickshell.
 - Quickshell is installed from the official repository when it is there, otherwise from the AUR (`quickshell-git`).
-- Add your own license file before publishing if you want others to reuse it.

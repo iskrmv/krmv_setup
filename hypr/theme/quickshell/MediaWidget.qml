@@ -53,10 +53,17 @@ Item {
     // ---- seeking (at most every 100 ms) ----
     property real dragFraction: -1
     property real pendingSeek: -1
+    // After a seek the player needs a moment to report the new position. Until then the slider stays where you put it
+    // (without this it jumped back to the old position and then forward again), and the position is read again twice.
+    property bool holding: false
+    property real holdFraction: 0
+    Timer { id: holdTimer; interval: 1000; onTriggered: media.holding = false }
+    Timer { id: refreshTimer; interval: 350; onTriggered: if (media.active) media.player.positionChanged() }
     function seek(f) {
         if (!canSeekNow) return
         dragFraction = f
         pendingSeek = f
+        holdFraction = f; holding = true; holdTimer.restart(); refreshTimer.restart()
         if (!seekThrottle.running) flushSeek()
     }
     function flushSeek() {
@@ -64,9 +71,18 @@ Item {
         player.position = pendingSeek * player.length
         pendingSeek = -1
         player.positionChanged()
+        refreshTimer.restart()
         seekThrottle.start()
     }
     Timer { id: seekThrottle; interval: 100; onTriggered: media.flushSeek() }
+
+    // repeat: off -> playlist -> one track -> off
+    function cycleLoop() {
+        if (!active || !player.loopSupported) return
+        const s = player.loopState
+        player.loopState = (s === MprisLoopState.None) ? MprisLoopState.Playlist
+                          : (s === MprisLoopState.Playlist ? MprisLoopState.Track : MprisLoopState.None)
+    }
 
     // ---- hover popup: stays open while the mouse is over the widget OR the popup; only one bar popup at a time ----
     property bool hoverPopup: false
@@ -219,7 +235,7 @@ Item {
                     theme: media.theme
                     enabled: media.canSeekNow
                     opacity: media.canSeekNow ? 1 : 0.4
-                    value: (pressed && media.dragFraction >= 0) ? media.dragFraction : media.fraction
+                    value: (pressed && media.dragFraction >= 0) ? media.dragFraction : (media.holding ? media.holdFraction : media.fraction)
                     onMoved: v => media.seek(v)
                     onPressedChanged: if (!pressed) media.dragFraction = -1
                 }
@@ -227,7 +243,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
-                        text: media.active ? media.fmt(media.player.position) : ""
+                        text: media.active ? media.fmt(media.holding && media.player.length > 0 ? media.holdFraction * media.player.length : media.player.position) : ""
                         color: media.theme.fg
                         font.family: media.theme.font; font.pixelSize: media.theme.size - 1
                     }
@@ -236,6 +252,54 @@ Item {
                         text: media.active && media.player.lengthSupported && media.player.length > 0 ? media.fmt(media.player.length) : "live"
                         color: media.theme.dim
                         font.family: media.theme.font; font.pixelSize: media.theme.size - 1
+                    }
+                }
+
+                // ---- controls: back, play / pause, next, repeat ----
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 30
+
+                    Text {
+                        text: "\uf048"
+                        color: (media.active && media.player.canGoPrevious) ? (backArea.containsMouse ? media.theme.fg : media.theme.icon) : media.theme.muted
+                        font.family: media.theme.font; font.pixelSize: media.theme.size + 6
+                        MouseArea { id: backArea; anchors { fill: parent; margins: -6 } hoverEnabled: true
+                                    onClicked: if (media.active && media.player.canGoPrevious) media.player.previous() }
+                    }
+                    Text {
+                        text: media.active && media.player.isPlaying ? "\uf04c" : "\uf04b"
+                        color: (media.active && media.player.canTogglePlaying) ? (playArea.containsMouse ? media.theme.fg : media.theme.icon) : media.theme.muted
+                        font.family: media.theme.font; font.pixelSize: media.theme.size + 10
+                        MouseArea { id: playArea; anchors { fill: parent; margins: -6 } hoverEnabled: true
+                                    onClicked: if (media.active && media.player.canTogglePlaying) media.player.togglePlaying() }
+                    }
+                    Text {
+                        text: "\uf051"
+                        color: (media.active && media.player.canGoNext) ? (nextArea.containsMouse ? media.theme.fg : media.theme.icon) : media.theme.muted
+                        font.family: media.theme.font; font.pixelSize: media.theme.size + 6
+                        MouseArea { id: nextArea; anchors { fill: parent; margins: -6 } hoverEnabled: true
+                                    onClicked: if (media.active && media.player.canGoNext) media.player.next() }
+                    }
+                    Item {   // repeat: dim = off, lit = playlist, lit with a "1" = one track
+                        readonly property bool supported: media.active && media.player.loopSupported
+                        readonly property bool lit: supported && media.player.loopState !== MprisLoopState.None
+                        implicitWidth: repeatGlyph.implicitWidth + 8
+                        implicitHeight: repeatGlyph.implicitHeight
+                        Text {
+                            id: repeatGlyph
+                            text: "\uf01e"
+                            color: parent.supported ? (parent.lit ? media.theme.icon : media.theme.dim) : media.theme.muted
+                            font.family: media.theme.font; font.pixelSize: media.theme.size + 4
+                        }
+                        Text {
+                            visible: parent.supported && media.player.loopState === MprisLoopState.Track
+                            anchors { right: parent.right; top: parent.top }
+                            text: "1"
+                            color: media.theme.icon; font.bold: true
+                            font.family: media.theme.font; font.pixelSize: media.theme.size - 4
+                        }
+                        MouseArea { anchors { fill: parent; margins: -6 } onClicked: media.cycleLoop() }
                     }
                 }
             }

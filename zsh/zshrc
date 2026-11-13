@@ -2,7 +2,7 @@
 
 # fastfetch greets you when a terminal opens. It must run BEFORE the powerlevel10k instant prompt below.
 if [[ -o interactive && -z "$FASTFETCH_DONE" ]] && (( $+commands[fastfetch] )); then
-  fastfetch
+  if [[ -f ~/.config/hypr/scripts/fetch.sh ]]; then sh ~/.config/hypr/scripts/fetch.sh; else fastfetch; fi
   export FASTFETCH_DONE=1      # nested shells (nvim terminal, tmux panes) do not repeat it
 fi
 

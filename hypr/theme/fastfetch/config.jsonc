@@ -1,10 +1,11 @@
-// ~/.config/fastfetch/config.jsonc - Tokyo Night colors, same look as the bar. Linked by install.sh.
-// Colors are truecolor codes:  cyan 13;185;215  blue 122;162;247  purple 173;142;230  grey 68;75;106
+// ~/.config/fastfetch/config.jsonc - minimal, Tokyo Night. Linked by install.sh.
+// Colors are truecolor codes:  cyan 13;185;215  purple 173;142;230  text 169;177;214  grey 68;75;106
+// scripts/fetch.sh picks the logo size from the width of your terminal (small terminal: small logo or none).
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
     "type": "auto",
-    "padding": { "top": 1, "left": 2, "right": 4 },
+    "padding": { "top": 1, "left": 1, "right": 3 },
     "color": { "1": "38;2;13;185;215", "2": "38;2;122;162;247", "3": "38;2;173;142;230" }
   },
   "display": {
@@ -15,28 +16,27 @@
       "separator": "38;2;68;75;106",
       "output": "38;2;169;177;214"
     },
-    "key": { "width": 11 },
-    "percent": { "type": 3 }
+    "key": { "width": 10 },
+    "percent": { "type": 1 }
   },
   "modules": [
     "title",
-    { "type": "separator", "string": "─" },
-    { "type": "os",       "key": "\uf303  OS" },
-    { "type": "host",     "key": "\uf108  Host" },
-    { "type": "kernel",   "key": "\uf17c  Kernel" },
+    { "type": "custom", "format": "──────────────────────────────", "outputColor": "38;2;68;75;106" },
+
+    { "type": "os",       "key": "\uf303  OS",     "format": "{name}" },
+    { "type": "kernel",   "key": "\uf17c  Kernel", "format": "{release}" },
     { "type": "uptime",   "key": "\uf017  Uptime" },
-    { "type": "packages", "key": "\uf187  Packages" },
-    { "type": "shell",    "key": "\uf120  Shell" },
-    { "type": "de",       "key": "\uf108  Desktop" },
-    { "type": "wm",       "key": "\uf2d0  WM" },
-    { "type": "terminal", "key": "\uf120  Terminal" },
-    { "type": "cpu",      "key": "\uf2db  CPU" },
-    { "type": "gpu",      "key": "\uf26c  GPU" },
-    { "type": "memory",   "key": "\uf1c0  Memory" },
-    { "type": "disk",     "key": "\uf0a0  Disk", "folders": "/" },
-    { "type": "battery",  "key": "\uf240  Battery" },
-    { "type": "locale",   "key": "\uf0ac  Locale" },
-    "break",
-    { "type": "colors", "symbol": "block", "paddingLeft": 2 }
+    { "type": "packages", "key": "\uf187  Pkgs",   "format": "{all}" },
+    { "type": "shell",    "key": "\uf120  Shell",  "format": "{pretty-name}" },
+    { "type": "wm",       "key": "\uf2d0  WM",     "format": "{pretty-name}" },
+    { "type": "terminal", "key": "\uf108  Term",   "format": "{pretty-name}" },
+
+    { "type": "custom", "format": "──────────────────────────────", "outputColor": "38;2;68;75;106" },
+
+    { "type": "cpu",      "key": "\uf2db  CPU",    "format": "{name}" },
+    { "type": "gpu",      "key": "\uf26c  GPU",    "format": "{name}" },
+    { "type": "memory",   "key": "\uf1c0  RAM",    "format": "{used} / {total}" },
+    { "type": "disk",     "key": "\uf0a0  Disk",   "folders": "/", "format": "{size-used} / {size-total}" },
+    { "type": "battery",  "key": "\uf240  Power",  "format": "{capacity}% {status}" }
   ]
 }

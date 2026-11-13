@@ -1,5 +1,5 @@
 // ~/.config/hypr/theme/quickshell/shell.qml
-// Other files: Chip, Slider, RamIcon, Clock, Toggle, TrayMenu, NetPanel, BtPanel, PowerMenu, Osd, MediaWidget, MarqueeText, ClockFace, DesktopClock, WidgetMover, Notifications, NotificationCard (.qml) - must live in this same folder
+// Other files: Chip, Slider, RamIcon, Clock, Toggle, TrayMenu, NetPanel, BtPanel, PowerMenu, Osd, MediaWidget, MarqueeText, ClockFace, DesktopClock, WidgetMover, ClockEngine, ClockPanel, AlarmRing, PanelButton, Notifications, NotificationCard (.qml) - must live in this same folder
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -26,7 +26,7 @@ ShellRoot {
     })
 
     // ---- State ----
-    property string openPanel: ""          // "", "wifi", "bt"
+    property string openPanel: ""          // "", "wifi", "bt", "clock"
     property bool powerOpen: false         // the full-screen power menu
     property string activePopup: ""        // which bar icon owns the hover popup (only one at a time)
     property bool volEngaged: false        // volume icon / popup in use (then no OSD)
@@ -387,6 +387,10 @@ ShellRoot {
         stdout: StdioCollector { onStreamFinished: if (text.trim() !== "") root.setLayout(text.trim()) }
     }
 
+    // ---- Clock app: timer, alarm, stopwatch (the engine keeps running when the panel is closed) ----
+    ClockEngine { id: clockEngine; panelOpen: root.openPanel === "clock" }
+    AlarmRing { theme: root.theme; engine: clockEngine }
+
     // ---- Desktop widgets ----
     // The clock's place is remembered in ~/.local/state/krmv-setup/clock-position
     readonly property string stateDir: Quickshell.env("HOME") + "/.local/state/krmv-setup"
@@ -418,6 +422,7 @@ ShellRoot {
     IpcHandler {
         target: "widgets"
         function move(): void { root.moveMode = true }
+        function clock(): void { root.togglePanel("clock") }       // SUPER + C
     }
     // Which desktop widgets are switched on (the edit mode lists them): { clock: true }
     property var widgetEnabled: ({ clock: true })
@@ -462,9 +467,10 @@ ShellRoot {
     IpcHandler {
         target: "osd"
         function message(icon: string, text: string, sub: string): void { osd.showMessage(icon, text, sub) }
+        function mediakey(action: string): void { root.mediaKeyAction = action; mediaKeyTimer.restart() }
     }
 
-    // ---- Media keys: show what happened (play / pause / a new track) ----
+    // ---- Media keys ----
     function pickMediaPlayer() {
         const ps = Mpris.players.values
         let paused = null
@@ -475,17 +481,16 @@ ShellRoot {
         return paused !== null ? paused : (ps.length > 0 ? ps[0] : null)
     }
     readonly property var mediaPlayer: pickMediaPlayer()
-    function mediaOsd(stateChange) {
-        if (!osdReady || mediaPlayer === null || mediaPlayer.trackTitle === "") return
+    // The info box appears ONLY for the media keys (the key script calls: ipc call osd mediakey <action>),
+    // not when you click inside the player or press space in a video.
+    property string mediaKeyAction: ""
+    Timer { id: mediaKeyTimer; interval: 220; onTriggered: root.mediaKeyOsd() }     // let the player update first
+    function mediaKeyOsd() {
         const p = mediaPlayer
-        if (stateChange) osd.showMessage(p.isPlaying ? "play" : "pause", p.isPlaying ? "Playing" : "Paused", p.trackTitle)
-        else osd.showMessage("music", p.trackTitle, p.trackArtist)
-    }
-    Connections {
-        target: root.mediaPlayer
-        ignoreUnknownSignals: true
-        function onPlaybackStateChanged() { root.mediaOsd(true) }
-        function onTrackTitleChanged() { root.mediaOsd(false) }
+        if (p === null) { osd.showMessage("music", "No media player", ""); return }
+        if (mediaKeyAction === "next") osd.showMessage("next", p.trackTitle, p.trackArtist)
+        else if (mediaKeyAction === "previous") osd.showMessage("prev", p.trackTitle, p.trackArtist)
+        else osd.showMessage(p.isPlaying ? "play" : "pause", p.isPlaying ? "Playing" : "Paused", p.trackTitle)
     }
     Timer { interval: 4000; running: true; onTriggered: root.osdReady = true }
     onVolumeChanged: if (osdReady && !volEngaged) osd.show("volume", volume, muted)
@@ -634,7 +639,7 @@ ShellRoot {
                 }
 
                 // Center
-                Clock { id: barClock; anchors.centerIn: parent; theme: root.theme }
+                Clock { id: barClock; anchors.centerIn: parent; theme: root.theme; suppressPopup: root.openPanel === "clock"; onClicked: root.togglePanel("clock") }
 
                 // Now playing: between the left group (launcher, workspaces) and the clock
                 MediaWidget {
@@ -773,6 +778,14 @@ ShellRoot {
                 visible: root.openPanel === "wifi"
                 onCloseRequested: root.closePanel()
                 onPowerChanged: on => root.wifiOn = on
+            }
+
+            ClockPanel {
+                screen: scope.modelData
+                theme: root.theme
+                engine: clockEngine
+                visible: root.openPanel === "clock"
+                onCloseRequested: root.closePanel()
             }
 
             PowerMenu {

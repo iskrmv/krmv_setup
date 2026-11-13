@@ -59,6 +59,8 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     neovim lazygit tree-sitter-cli nodejs npm unzip
     # fastfetch greeting, night mode (blue light filter), xdg-utils (default apps)
     fastfetch hyprsunset xdg-utils
+    # clock app alarm sound; image viewer (swayimg: fast, native Wayland, opens nearly every format) and its format libraries
+    sound-theme-freedesktop swayimg libheif libjxl libavif libraw
     # dark mode
     gnome-themes-extra adwaita-icon-theme dconf qt6ct
     # shell
@@ -164,7 +166,7 @@ else
 fi
 
 # ------------------------------------------------------------------ 2c. Shortcuts, default apps
-# The customizable shortcuts are generated from data/binds.tsv (and your changes, made in SUPER + P > Keyboard shortcuts)
+# The customizable shortcuts are generated from data/binds.tsv (and your changes, made in SUPER + I > Keyboard shortcuts)
 sh "$CFG/hypr/scripts/gen-binds.sh" || warn "Could not generate the shortcuts"
 rm -f "$HOME/.local/share/applications/pince-root.desktop"      # an old entry from an earlier version
 
@@ -177,6 +179,28 @@ if [ ! -f /usr/share/applications/yazi.desktop ] && [ ! -f "$HOME/.local/share/a
     > "$HOME/.local/share/applications/yazi.desktop"
 fi
 command -v xdg-mime >/dev/null 2>&1 && xdg-mime default yazi.desktop inode/directory || true
+
+# swayimg is the default image viewer (it opens PNG, JPEG, GIF, WebP, AVIF, HEIC, JXL, SVG, TIFF, BMP, RAW ...)
+if [ ! -f /usr/share/applications/swayimg.desktop ] && [ ! -f "$HOME/.local/share/applications/swayimg.desktop" ]; then
+  printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=swayimg' 'Comment=Image viewer' 'Exec=swayimg %F' \
+    'Icon=image-x-generic' 'MimeType=image/png;image/jpeg;image/gif;image/webp;image/avif;image/heic;image/jxl;image/svg+xml;image/tiff;image/bmp;' \
+    'Categories=Graphics;Viewer;' > "$HOME/.local/share/applications/swayimg.desktop"
+fi
+if command -v xdg-mime >/dev/null 2>&1; then
+  for m in image/png image/jpeg image/gif image/webp image/avif image/heic image/heif image/jxl image/svg+xml image/tiff image/bmp; do
+    xdg-mime default swayimg.desktop "$m"
+  done
+fi
+
+# "Settings" and "Clock" show up in the app launcher (type settings, clock, timer or alarm in rofi)
+printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Settings' 'Comment=Default apps, keyboard shortcuts, widgets, night mode' \
+  "Exec=sh $CFG/hypr/scripts/settings.sh" 'Icon=preferences-system' 'Terminal=false' 'Categories=Settings;' \
+  'Keywords=settings;preferences;default apps;shortcuts;keyboard;widgets;night mode;' \
+  > "$HOME/.local/share/applications/krmv-settings.desktop"
+printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Clock' 'Comment=Timer, alarm and stopwatch' \
+  "Exec=qs -p $CFG/hypr/theme/quickshell/shell.qml ipc call widgets clock" 'Icon=preferences-system-time' 'Terminal=false' 'Categories=Utility;' \
+  'Keywords=clock;timer;alarm;stopwatch;' \
+  > "$HOME/.local/share/applications/krmv-clock.desktop"
 
 # ------------------------------------------------------------------ 3. kitty / rofi / hyprlock / dark mode
 link_cfg() {   # link_cfg <source> <target>: back up a real file, then symlink

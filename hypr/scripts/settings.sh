@@ -1,5 +1,5 @@
 #!/bin/sh
-# Settings (SUPER + P): default apps, keyboard shortcuts, desktop widgets, night mode.
+# Settings (SUPER + I): default apps, keyboard shortcuts, desktop widgets, night mode.
 CFG="${HYPR_CFG:-$HOME/.config/hypr}"
 STATE="${KRMV_STATE:-$HOME/.local/state/krmv-setup}"
 APP_DIRS="${APP_DIRS:-$HOME/.local/share/applications /usr/local/share/applications /usr/share/applications /var/lib/flatpak/exports/share/applications $HOME/.local/share/flatpak/exports/share/applications}"

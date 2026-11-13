@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the customizable shortcuts from data/binds.tsv (defaults) plus your changes
-# (~/.local/state/krmv-setup/binds.user.tsv, written by SUPER + P > Keyboard shortcuts) and writes
+# (~/.local/state/krmv-setup/binds.user.tsv, written by SUPER + I > Keyboard shortcuts) and writes
 #   conf/custom-binds.lua   the Hyprland binds (loaded by conf/keybinds.lua)
 #   data/shortcuts.txt      the list shown by SUPER + /
 # Run it after changing anything, then reload Hyprland (SUPER + R).

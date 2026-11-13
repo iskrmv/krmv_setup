@@ -12,9 +12,10 @@ ALT + SHIFT            Switch keyboard layout (English / Russian)
 Volume keys            Volume up / down / mute
 Brightness keys        Brightness up / down
 Media keys             Play / pause / next / previous (an info box shows what happened)
+Bar: click the clock   Clock app: timer, alarm, stopwatch
 Touchpad key           Touchpad on / off (an info box shows the state)
 Power icon (bar)       Power menu: lock, log out, sleep, reboot, power off
 Bar: hover icons       CPU / RAM / disk details, volume + brightness sliders
 Bar: arrow in sliders  Volume: one slider per app. Brightness: night mode
-Bar: media widget      Back / play / next; hover for the seek slider
+Bar: media widget      Back / play / next; hover for the seek slider, repeat and big buttons
 Bar: click icons       Wi-Fi and Bluetooth panels, tray app windows

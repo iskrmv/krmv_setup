@@ -3,7 +3,7 @@ local mod = "SUPER"
 
 -- The customizable shortcuts (terminal, launcher, file manager, browser, settings, screenshots, ...) are NOT here:
 -- they live in data/binds.tsv and are turned into conf/custom-binds.lua by scripts/gen-binds.sh.
--- Change them with SUPER + P > Keyboard shortcuts. This file keeps the fixed ones.
+-- Change them with SUPER + I > Keyboard shortcuts. This file keeps the fixed ones.
 pcall(require, "conf/custom-binds")
 
 -- Windows
@@ -41,11 +41,11 @@ hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_S
 hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),     { locked = true })
 
 -- Media keys (Fn + play / pause / next / previous), they control the player you used last
-hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("playerctl play-pause"), { locked = true })
-hl.bind("XF86AudioPause", hl.dsp.exec_cmd("playerctl pause"),      { locked = true })
-hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("playerctl next"),       { locked = true })
-hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("playerctl previous"),   { locked = true })
-hl.bind("XF86AudioStop",  hl.dsp.exec_cmd("playerctl stop"),       { locked = true })
+hl.bind("XF86AudioPlay",  hl.dsp.exec_cmd("sh ~/.config/hypr/scripts/media-key.sh play-pause"), { locked = true })
+hl.bind("XF86AudioPause", hl.dsp.exec_cmd("sh ~/.config/hypr/scripts/media-key.sh pause"),      { locked = true })
+hl.bind("XF86AudioNext",  hl.dsp.exec_cmd("sh ~/.config/hypr/scripts/media-key.sh next"),       { locked = true })
+hl.bind("XF86AudioPrev",  hl.dsp.exec_cmd("sh ~/.config/hypr/scripts/media-key.sh previous"),   { locked = true })
+hl.bind("XF86AudioStop",  hl.dsp.exec_cmd("sh ~/.config/hypr/scripts/media-key.sh stop"),       { locked = true })
 
 -- Touchpad on / off key (an info box shows the state)
 hl.bind("XF86TouchpadToggle", hl.dsp.exec_cmd("sh ~/.config/hypr/scripts/touchpad.sh toggle"), { locked = true })

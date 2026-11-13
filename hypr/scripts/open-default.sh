@@ -1,5 +1,5 @@
 #!/bin/sh
-# Opens your DEFAULT app for a role. The defaults are chosen in SUPER + P > Default apps.
+# Opens your DEFAULT app for a role. The defaults are chosen in SUPER + I > Default apps.
 # Usage: open-default.sh terminal|browser|files|editor|video|audio|image|pdf [arguments]
 STATE="${KRMV_STATE:-$HOME/.local/state/krmv-setup}"
 APP_DIRS="${APP_DIRS:-$HOME/.local/share/applications /usr/local/share/applications /usr/share/applications /var/lib/flatpak/exports/share/applications $HOME/.local/share/flatpak/exports/share/applications}"
@@ -65,7 +65,7 @@ case "$role" in
     case "$role" in
       browser) exec xdg-open "https://" ;;
       files)   run_in_terminal "yazi $*" ;;
-      *)       notify-send "Default apps" "No default $role app is set. Press SUPER + P to choose one."; exit 1 ;;
+      *)       notify-send "Default apps" "No default $role app is set. Press SUPER + I to choose one."; exit 1 ;;
     esac
     ;;
   *) echo "Usage: open-default.sh terminal|browser|files|editor|video|audio|image|pdf [arguments]"; exit 1 ;;

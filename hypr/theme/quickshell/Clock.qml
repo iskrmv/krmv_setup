@@ -6,6 +6,8 @@ import Quickshell
 Item {
     id: clock
     required property var theme
+    property bool suppressPopup: false      // true while the clock app is open
+    signal clicked()
     implicitWidth: label.implicitWidth
     implicitHeight: 30
 
@@ -35,10 +37,10 @@ Item {
         font.pixelSize: clock.theme.size
     }
 
-    MouseArea { id: area; anchors.fill: parent; hoverEnabled: true }
+    MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; onClicked: clock.clicked() }
 
     PopupWindow {
-        visible: area.containsMouse
+        visible: area.containsMouse && !clock.suppressPopup
         anchor.item: clock
         anchor.edges: Edges.Bottom
         anchor.gravity: Edges.Bottom

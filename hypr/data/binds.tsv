@@ -1,9 +1,10 @@
-# id	keys	description	command      (tab separated). Change a shortcut with SUPER + P > Keyboard shortcuts, or edit this file.
+# id	keys	description	command      (tab separated). Change a shortcut with SUPER + I > Keyboard shortcuts, or edit this file.
 terminal	SUPER + Return	Terminal	sh ~/.config/hypr/scripts/open-default.sh terminal
 launcher	ALT + space	App launcher	rofi -show drun
 files	SUPER + E	File manager	sh ~/.config/hypr/scripts/open-default.sh files
 browser	SUPER + B	Web browser	sh ~/.config/hypr/scripts/open-default.sh browser
-settings	SUPER + P	Settings: default apps, shortcuts, widgets	sh ~/.config/hypr/scripts/settings.sh
+settings	SUPER + I	Settings: default apps, shortcuts, widgets	sh ~/.config/hypr/scripts/settings.sh
+clockapp	SUPER + C	Clock: timer, alarm, stopwatch	qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call widgets clock
 clipboard	SUPER + V	Clipboard history	sh ~/.config/hypr/scripts/clipboard.sh
 emoji	SUPER + period	Emoji picker	sh ~/.config/hypr/scripts/emoji.sh
 shot-region	SUPER + SHIFT + S	Screenshot: select an area	sh ~/.config/hypr/scripts/screenshot.sh region
