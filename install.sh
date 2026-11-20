@@ -10,6 +10,7 @@
 #   SKIP_SDDM=1      do not touch SDDM
 #   SKIP_ZSH=1       do not touch zsh
 #   SKIP_NVIM=1      do not install LazyVim
+#   SKIP_DNS=1       do not install the dns command (DNS-over-TLS switcher)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -65,6 +66,8 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     gnome-themes-extra adwaita-icon-theme dconf qt6ct
     # shell
     zsh zsh-autosuggestions zsh-syntax-highlighting zsh-theme-powerlevel10k
+    # dns tool (openssl verifies the DoT certificate; curl checks the result)
+    openssl curl
   )
   # Install what the official repos have in one transaction; the rest (if any) comes from the AUR
   repo=(); aur=()
@@ -275,6 +278,19 @@ fi
 
 # The bar is the notification daemon, so make sure mako is not running
 pkill -x mako 2>/dev/null || true
+
+# ------------------------------------------------------------------ 5b. DNS switcher (dns)
+# Only installs the command. It never changes the user's DNS settings.
+if [ -z "${SKIP_DNS:-}" ]; then
+  if [ -f "$HERE/dns/dns" ]; then
+    say "Installing the dns command (DNS-over-TLS switcher)"
+    sudo install -Dm755 "$HERE/dns/dns" /usr/local/bin/dns
+    sudo rm -f /usr/local/bin/krmvdns      # the old command name
+    echo "dns installed. To enable DoT DNS, run: dns dns.adguard.com"
+  else
+    warn "dns/dns is missing - skipping the DNS switcher"
+  fi
+fi
 
 # ------------------------------------------------------------------ 6. SDDM theme
 if [ -z "${SKIP_SDDM:-}" ]; then

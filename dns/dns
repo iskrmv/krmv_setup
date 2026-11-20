@@ -1,0 +1,583 @@
+#!/usr/bin/env bash
+# dns - one-command DNS-over-TLS switcher for Arch Linux + NetworkManager
+# Author: krmv
+# Version: 1.2
+#
+# Test hooks (not needed for normal use):
+#   DNS_ROOT       prefix every system path (fake root for the test suite)
+#   DNS_TEST_ROOT  skip the sudo/pkexec escalation (used by the test suite)
+set -euo pipefail
+
+# Keep the caller's PATH (sudo sanitizes it in normal use); this also allows test stubs.
+: "${PATH:=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin}"
+export PATH
+
+SELF="$(readlink -f "$0")"
+VERSION="1.2"
+
+# Every system path is prefixed so the tool can be exercised in a fake root.
+PFX="${DNS_ROOT:-}"
+RESOLVED_DIR="${PFX}/etc/systemd/resolved.conf.d"
+RESOLVED_DROPIN="${RESOLVED_DIR}/90-dns-switch.conf"
+NM_DIR="${PFX}/etc/NetworkManager/conf.d"
+NM_DROPIN="${NM_DIR}/90-dns-switch.conf"
+STATE_DIR="${PFX}/var/lib/dns-switch"
+MANIFEST="$STATE_DIR/original-state.env"
+CONN_FILE="$STATE_DIR/connections.tsv"
+DROPIN_FILE="$STATE_DIR/dropins.tsv"
+BACKUP_DIR="$STATE_DIR/backups"
+RESOLV_CONF="${PFX}/etc/resolv.conf"
+STUB="${PFX}/run/systemd/resolve/stub-resolv.conf"
+
+# Files left by older versions. They are backed up, then removed.
+LEGACY_FILES=(
+  "${PFX}/etc/systemd/resolved.conf.d/90-krmvdns.conf"
+  "${PFX}/etc/systemd/resolved.conf.d/90-adguard.conf"
+  "${PFX}/etc/NetworkManager/conf.d/90-krmvdns.conf"
+  "${PFX}/etc/NetworkManager/conf.d/90-dns.conf"
+)
+
+info() { printf '%s\n' "$*"; }
+warn() { printf '[!] %s\n' "$*" >&2; }
+die()  { printf 'Error: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+dns - one command to switch the whole system to DNS-over-TLS (Arch Linux)
+
+Usage:
+  dns dns.adguard.com        Set DNS to this DoT server
+  dns change dns.adguard.com Same thing (change = set)
+  dns change 1.1.1.1         An IP address works too
+  dns change                 Interactive: show current DNS, then ask for a new one
+  dns status                 Show the current DNS state
+  dns list                   Well-known DoT providers
+  dns test                   Check DNS and HTTPS
+  dns stop                   Restore the settings saved before the first set
+  dns help                   This help
+
+Examples:
+  dns dns.adguard.com
+  dns change 1.1.1.1
+  dns change dns.google
+
+Note: this network hijacks plain DNS (port 53), so DoT (port 853) is used.
+No third-party app is needed. The setting survives a reboot until you change it
+or run "dns stop".
+
+Requires: bash, openssl, curl, getent, nmcli, systemctl, resolvectl.
+EOF
+}
+
+need_root() {
+  if [ "$(id -u)" -eq 0 ] || [ -n "${DNS_TEST_ROOT:-}" ]; then
+    return 0
+  fi
+  # In a terminal use sudo; without one (launcher, rofi) use the polkit dialog.
+  if [ -t 0 ] && command -v sudo >/dev/null 2>&1; then
+    exec sudo "$SELF" "$@"
+  fi
+  if [ ! -t 0 ] && command -v pkexec >/dev/null 2>&1; then
+    exec pkexec "$SELF" "$@"
+  fi
+  if command -v sudo >/dev/null 2>&1; then
+    exec sudo "$SELF" "$@"
+  fi
+  if command -v pkexec >/dev/null 2>&1; then
+    exec pkexec "$SELF" "$@"
+  fi
+  die "Root privileges are required, but neither sudo nor pkexec was found."
+}
+
+is_ipv4() {
+  local ip="$1" o
+  [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  local IFS='.'
+  local -a octets=()
+  read -r -a octets <<< "$ip"
+  for o in "${octets[@]}"; do
+    [ $((10#$o)) -ge 0 ] && [ $((10#$o)) -le 255 ] || return 1
+  done
+  return 0
+}
+
+is_ipv6() {
+  local ip="$1"
+  [[ "$ip" == *:* ]] || return 1
+  [[ "$ip" =~ ^[0-9A-Fa-f:]+$ ]] || return 1
+  [[ "$ip" != *:::* ]] || return 1
+  [[ "$ip" != *::*::* ]] || return 1
+  return 0
+}
+
+is_hostname() {
+  local h="$1"
+  [ -n "$h" ] || return 1
+  [ "${#h}" -le 253 ] || return 1
+  [[ "$h" == *.* ]] || return 1
+  [[ "$h" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || return 1
+  [[ "$h" != *..* ]] || return 1
+  # Do not accept a malformed IP such as 999.999.999.999 as a hostname.
+  [[ "$h" =~ ^[0-9.]+$ ]] && return 1
+  return 0
+}
+
+is_target() {
+  is_ipv4 "$1" || is_ipv6 "$1" || is_hostname "$1"
+}
+
+resolve_ipv4() {
+  local host="$1"
+  local -a found=()
+  mapfile -t found < <(getent ahostsv4 "$host" 2>/dev/null | awk '{print $1}' | sort -u)
+  if [ "${#found[@]}" -eq 0 ]; then
+    # Fallback for networks whose current DNS cannot resolve the provider name yet.
+    case "$host" in
+      dns.adguard.com|dns.adguard-dns.com) found=(94.140.14.14 94.140.15.15) ;;
+      unfiltered.adguard-dns.com) found=(94.140.14.140 94.140.14.141) ;;
+      family.adguard-dns.com) found=(94.140.14.15 94.140.15.16) ;;
+      dns.google) found=(8.8.8.8 8.8.4.4) ;;
+      cloudflare-dns.com) found=(1.1.1.1 1.0.0.1) ;;
+      dns.quad9.net) found=(9.9.9.9 149.112.112.112) ;;
+    esac
+  fi
+  [ "${#found[@]}" -gt 0 ] || return 1
+  printf '%s\n' "${found[@]}"
+}
+
+resolve_target() {
+  local target="$1"
+  if is_ipv4 "$target" || is_ipv6 "$target"; then
+    printf '%s\n' "$target"
+    return 0
+  fi
+  resolve_ipv4 "$target"
+}
+
+sni_for() {
+  local target="$1"
+  if is_ipv4 "$target" || is_ipv6 "$target"; then
+    case "$target" in
+      1.1.1.1|1.0.0.1) echo "cloudflare-dns.com" ;;
+      8.8.8.8|8.8.4.4) echo "dns.google" ;;
+      9.9.9.9|149.112.112.112) echo "dns.quad9.net" ;;
+      94.140.14.14|94.140.15.15|94.140.14.140|94.140.14.141|94.140.14.15|94.140.15.16|2a10:50c0::ad1:ff|2a10:50c0::ad2:ff)
+        echo "dns.adguard.com" ;;
+      *) return 1 ;;
+    esac
+    return 0
+  fi
+  printf '%s\n' "$target"
+}
+
+require_openssl() {
+  command -v openssl >/dev/null 2>&1 || die "openssl is required to verify DoT certificates. Install it with: sudo pacman -S openssl"
+}
+
+verify_dot() {
+  local ip="$1" sni="$2" connect
+  if [[ "$ip" == *:* ]]; then connect="[$ip]:853"; else connect="$ip:853"; fi
+  command -v openssl >/dev/null 2>&1 || return 1
+  if [ -n "$sni" ]; then
+    timeout 8 openssl s_client -connect "$connect" -servername "$sni" \
+      -verify_hostname "$sni" -verify_return_error </dev/null 2>&1 |
+      grep -q "Verify return code: 0 (ok)"
+  else
+    timeout 8 openssl s_client -connect "$connect" -verify_ip "$ip" \
+      -verify_return_error </dev/null 2>&1 |
+      grep -q "Verify return code: 0 (ok)"
+  fi
+}
+
+active_connection() {
+  nmcli -t -f NAME,DEVICE,STATE connection show --active 2>/dev/null |
+    awk -F: '$2!="lo" && $2!="virbr0" {print $1; exit}'
+}
+
+wait_connected() {
+  local state
+  for _ in $(seq 1 20); do
+    state="$(nmcli -t -f STATE general 2>/dev/null || true)"
+    [ "$state" = "connected" ] && return 0
+    sleep 1
+  done
+  return 1
+}
+
+# --- state backup / restore -------------------------------------------------
+
+record_connections() {
+  local name v4 v6 values
+  while IFS=: read -r name type; do
+    [ -n "$name" ] || continue
+    case "$type" in
+      802-11-wireless|802-3-ethernet) ;;
+      *) continue ;;
+    esac
+    # Only record each connection once: these are the ORIGINAL values.
+    if grep -qF "$name"$'\t' "$CONN_FILE" 2>/dev/null; then continue; fi
+    values="$(nmcli -g ipv4.ignore-auto-dns,ipv6.ignore-auto-dns con show "$name" 2>/dev/null | tr '\n' '\t' || true)"
+    IFS=$'\t' read -r v4 v6 _ <<< "$values"
+    [ -n "${v4:-}" ] || v4="no"
+    [ -n "${v6:-}" ] || v6="no"
+    printf '%s\t%s\t%s\n' "$name" "$v4" "$v6" >> "$CONN_FILE"
+  done < <(nmcli -t -f NAME,TYPE connection show 2>/dev/null || true)
+}
+
+backup_dropins() {
+  local dir="$1" f base label
+  for f in "$RESOLVED_DROPIN" "$NM_DROPIN" "${LEGACY_FILES[@]}"; do
+    if [ -e "$f" ] || [ -L "$f" ]; then
+      case "$f" in
+        */NetworkManager/*) label="nm" ;;
+        *) label="resolved" ;;
+      esac
+      base="$(basename "$f")"
+      cp -a "$f" "$dir/${label}-${base}"
+      printf '%s\t%s\n' "$f" "$dir/${label}-${base}" >> "$DROPIN_FILE"
+    fi
+  done
+}
+
+backup_state() {
+  local stamp dir
+  mkdir -p "$BACKUP_DIR"
+  stamp="$(date +%Y%m%d-%H%M%S)"
+  dir="$BACKUP_DIR/$stamp"
+  mkdir -p "$dir"
+  : > "$MANIFEST"
+  : > "$CONN_FILE"
+  : > "$DROPIN_FILE"
+  printf 'BACKUP_STAMP=%q\n' "$stamp" >> "$MANIFEST"
+
+  if [ -e "$RESOLV_CONF" ] || [ -L "$RESOLV_CONF" ]; then
+    cp -a "$RESOLV_CONF" "$dir/resolv.conf"
+    printf 'RESOLV_BACKUP=%q\n' "$dir/resolv.conf" >> "$MANIFEST"
+  fi
+  printf 'RESOLVED_ENABLED=%q\n' "$(systemctl is-enabled systemd-resolved 2>/dev/null || true)" >> "$MANIFEST"
+  printf 'RESOLVED_ACTIVE=%q\n' "$(systemctl is-active systemd-resolved 2>/dev/null || true)" >> "$MANIFEST"
+
+  backup_dropins "$dir"
+  record_connections
+  info "Saved the previous DNS state to: $dir"
+}
+
+remove_managed_files() {
+  rm -f "$RESOLVED_DROPIN" "$NM_DROPIN" "${LEGACY_FILES[@]}"
+}
+
+set_connections_dns() {
+  local name type
+  while IFS=: read -r name type; do
+    case "$type" in
+      802-11-wireless|802-3-ethernet)
+        nmcli con mod "$name" ipv4.ignore-auto-dns yes ipv6.ignore-auto-dns yes >/dev/null 2>&1 || true
+        ;;
+    esac
+  done < <(nmcli -t -f NAME,TYPE connection show 2>/dev/null || true)
+}
+
+restore_resolved_state() {
+  local enabled="${1:-}" active="${2:-}"
+  case "$enabled" in
+    enabled)  systemctl enable systemd-resolved >/dev/null 2>&1 || true ;;
+    disabled) systemctl disable systemd-resolved >/dev/null 2>&1 || true ;;
+  esac
+  case "$active" in
+    active)   systemctl start systemd-resolved >/dev/null 2>&1 || true ;;
+    inactive) systemctl stop systemd-resolved >/dev/null 2>&1 || true ;;
+  esac
+}
+
+restart_network() {
+  local active_conn="${1:-}"
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  if ! systemctl restart NetworkManager >/dev/null 2>&1; then
+    warn "Could not restart NetworkManager"
+  fi
+  if ! wait_connected && [ -n "$active_conn" ]; then
+    nmcli con up "$active_conn" >/dev/null 2>&1 || true
+    wait_connected || true
+  fi
+}
+
+# --- commands ---------------------------------------------------------------
+
+do_set() {
+  local target="${1:-}"
+  is_target "$target" || die "Invalid DNS server address: '$target'. Use a hostname or IP (for example: dns change dns.adguard.com)."
+  require_openssl
+
+  local sni=""
+  sni="$(sni_for "$target" || true)"
+  local -a ips=()
+  mapfile -t ips < <(resolve_target "$target" || true)
+  if [ "${#ips[@]}" -eq 0 ] || [ -z "${ips[0]:-}" ]; then
+    die "Could not resolve '$target' to an IP address. Check your Internet connection or current DNS."
+  fi
+
+  local -a good=()
+  local ip
+  for ip in "${ips[@]}"; do
+    if verify_dot "$ip" "$sni"; then good+=("$ip"); fi
+  done
+  if [ "${#good[@]}" -eq 0 ]; then
+    echo "Error: DoT (port 853) did not work for '$target'." >&2
+    if [ -z "$sni" ]; then
+      echo "No SNI is known for this IP. Try a hostname instead." >&2
+    else
+      echo "The server may not support DoT, or this network blocks port 853." >&2
+    fi
+    echo "A captive portal can cause the same failure. Run 'dns stop' to return to DHCP DNS." >&2
+    exit 1
+  fi
+
+  local dns_value=""
+  for ip in "${good[@]}"; do
+    if [ -n "$sni" ]; then dns_value+="${ip}#${sni} "; else dns_value+="${ip} "; fi
+  done
+  dns_value="${dns_value% }"
+
+  install -d "$RESOLVED_DIR" "$NM_DIR" "$STATE_DIR"
+  if [ -f "$MANIFEST" ]; then
+    record_connections   # a new Wi-Fi profile may have appeared since the first set
+  else
+    backup_state         # first set: save everything BEFORE touching the system
+  fi
+  remove_managed_files
+
+  cat > "$RESOLVED_DROPIN" <<EOF
+# managed by dns (krmv-setup)
+[Resolve]
+DNS=${dns_value}
+DNSOverTLS=yes
+Domains=~.
+FallbackDNS=
+EOF
+  cat > "$NM_DROPIN" <<'EOF'
+# managed by dns (krmv-setup)
+[main]
+dns=systemd-resolved
+rc-manager=symlink
+EOF
+
+  if [ ! -L "$RESOLV_CONF" ] || [ "$(readlink -f "$RESOLV_CONF" 2>/dev/null || true)" != "$STUB" ]; then
+    rm -f "$RESOLV_CONF"
+    ln -s "$STUB" "$RESOLV_CONF"
+  fi
+
+  set_connections_dns
+
+  local active_conn
+  active_conn="$(active_connection || true)"
+  systemctl enable --now systemd-resolved >/dev/null 2>&1 || true
+  if ! systemctl restart systemd-resolved >/dev/null 2>&1; then
+    warn "Could not restart systemd-resolved"
+  fi
+  restart_network "$active_conn"
+  resolvectl flush-caches >/dev/null 2>&1 || true
+
+  echo
+  info "DNS set to: ${target}"
+  info "   Servers: ${good[*]}"
+  [ -z "$sni" ] || info "   SNI: ${sni}"
+  info "   DoT: enabled (port 853)"
+  info "   This setting survives a reboot."
+  echo
+  info "Verification:"
+  if resolvectl query example.com >/dev/null 2>&1; then
+    info "   DNS query: working"
+  else
+    warn "DNS query: failed (run 'dns status'). Port 853 may be blocked or a captive portal may be active; 'dns stop' returns to DHCP DNS."
+  fi
+  if curl -sS -o /dev/null --max-time 10 https://example.com 2>/dev/null; then
+    info "   HTTPS: working"
+  else
+    warn "HTTPS: failed"
+  fi
+  echo
+  info "Status: dns status"
+}
+
+do_status() {
+  info "=== /etc/resolv.conf ==="
+  ls -l "$RESOLV_CONF" 2>/dev/null || true
+  echo
+  info "=== systemd-resolved ==="
+  systemctl is-active systemd-resolved 2>/dev/null || true
+  systemctl is-enabled systemd-resolved 2>/dev/null || true
+  echo
+  info "=== DNS ==="
+  resolvectl status 2>/dev/null | sed -n '1,18p' || true
+  echo
+  info "=== Active connection ==="
+  nmcli -t -f NAME,DEVICE,STATE connection show --active 2>/dev/null || true
+  echo
+  info "=== dns ==="
+  info "version: $VERSION"
+  if [ -f "$RESOLVED_DROPIN" ]; then
+    info "configuration: $RESOLVED_DROPIN"
+  else
+    info "configuration: not installed (DHCP DNS is in use)"
+  fi
+  if [ -f "$MANIFEST" ]; then
+    info "previous state saved: yes (restored by 'dns stop')"
+  else
+    info "previous state saved: no"
+  fi
+}
+
+do_list() {
+  cat <<'EOF'
+Well-known DoT servers:
+  dns.adguard-dns.com        AdGuard DNS (default filtering)
+  dns.adguard.com            AdGuard DNS (old name, still works)
+  unfiltered.adguard-dns.com AdGuard DNS (no filtering)
+  family.adguard-dns.com     AdGuard Family
+  dns.google                 Google Public DNS
+  cloudflare-dns.com         Cloudflare 1.1.1.1
+  dns.quad9.net              Quad9
+
+An IP address works too:
+  dns change 1.1.1.1
+  dns change 8.8.8.8
+  dns change 9.9.9.9
+  dns change 94.140.14.14
+
+Or a hostname:
+  dns change dns.adguard.com
+  dns change dns.google
+EOF
+}
+
+do_test() {
+  info "=== DNS query ==="
+  resolvectl query example.com 2>&1 | head -8 || true
+  echo
+  info "=== HTTPS ==="
+  curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 15 https://example.com 2>&1 || true
+}
+
+do_stop() {
+  info "Restoring the DNS settings saved before the first set..."
+  local restored=0 stamp dir
+  if [ -f "$MANIFEST" ]; then
+    # shellcheck source=/dev/null
+    . "$MANIFEST"
+    restored=1
+    if [ -n "${RESOLV_BACKUP:-}" ] && [ -e "$RESOLV_BACKUP" ]; then
+      rm -f "$RESOLV_CONF"
+      cp -a "$RESOLV_BACKUP" "$RESOLV_CONF"
+    elif [ -L "$RESOLV_CONF" ] && [ "$(readlink -f "$RESOLV_CONF" 2>/dev/null || true)" = "$STUB" ]; then
+      rm -f "$RESOLV_CONF"
+    fi
+
+    local name v4 v6
+    if [ -f "$CONN_FILE" ]; then
+      while IFS=$'\t' read -r name v4 v6; do
+        [ -n "${name:-}" ] || continue
+        nmcli con mod "$name" ipv4.ignore-auto-dns "$v4" ipv6.ignore-auto-dns "$v6" >/dev/null 2>&1 || true
+      done < "$CONN_FILE"
+    fi
+  else
+    warn "No saved state found at $MANIFEST."
+    warn "Connection DNS settings were left unchanged. Run 'dns set <server>' once to enable exact restore."
+    # Still never delete an old drop-in without keeping a copy.
+    mkdir -p "$STATE_DIR" "$BACKUP_DIR"
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    dir="$BACKUP_DIR/$stamp"
+    mkdir -p "$dir"
+    : > "$DROPIN_FILE"
+    backup_dropins "$dir"
+    if [ -s "$DROPIN_FILE" ]; then
+      info "Existing drop-ins backed up to: $dir"
+    fi
+  fi
+
+  remove_managed_files
+  if [ "$restored" -eq 1 ]; then
+    restore_resolved_state "${RESOLVED_ENABLED:-}" "${RESOLVED_ACTIVE:-}"
+  fi
+
+  local active_conn
+  active_conn="$(active_connection || true)"
+  restart_network "$active_conn"
+  resolvectl flush-caches >/dev/null 2>&1 || true
+
+  if [ "$restored" -eq 1 ]; then
+    rm -f "$MANIFEST" "$CONN_FILE" "$DROPIN_FILE"
+  fi
+
+  echo
+  info "Done. Previous DNS settings restored; the dns drop-ins were removed."
+  info "Legacy files from older versions were backed up in: $BACKUP_DIR"
+  echo
+  info "=== /etc/resolv.conf ==="
+  cat "$RESOLV_CONF" 2>/dev/null || true
+}
+
+main() {
+  local action="help" host="" interactive=0
+  if [ "$#" -eq 0 ]; then
+    action="help"
+  else
+    case "$1" in
+      change)
+        shift
+        host="${1:-}"
+        action="set"
+        interactive=1
+        ;;
+      set|use)
+        shift
+        host="${1:-}"
+        action="set"
+        ;;
+      stop|off|reset|restore) action="stop" ;;
+      status|show|current)    action="status" ;;
+      list|providers)         action="list" ;;
+      test|check)             action="test" ;;
+      help|-h|--help)         action="help" ;;
+      *)
+        if is_target "$1"; then
+          host="$1"
+          action="set"
+        else
+          echo "Error: unknown command: $1" >&2
+          echo
+          usage
+          exit 1
+        fi
+        ;;
+    esac
+  fi
+
+  if [ "$action" = "set" ] && [ -z "$host" ]; then
+    if [ "$interactive" -eq 1 ]; then
+      info "Current DNS:"
+      resolvectl status 2>/dev/null | sed -n '1,8p' || true
+      echo
+      printf 'New DNS (hostname or IP): '
+      if ! read -r host; then
+        die "No DNS address entered."
+      fi
+    else
+      die "A hostname or IP is required. Example: dns dns.adguard.com"
+    fi
+  fi
+
+  if [ "$action" = "set" ] && ! is_target "$host"; then
+    die "Invalid DNS server address: '$host'. Example: dns change dns.adguard.com"
+  fi
+
+  case "$action" in
+    set)    need_root set "$host"; do_set "$host" ;;
+    stop)   need_root stop;        do_stop ;;
+    status) do_status ;;
+    list)   do_list ;;
+    test)   do_test ;;
+    help)   usage ;;
+  esac
+}
+
+main "$@"

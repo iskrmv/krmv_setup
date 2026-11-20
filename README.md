@@ -1,5 +1,10 @@
 # krmv-setup
 
+<p align="center">
+  <img src="docs/concept.png" alt="krmv-setup concept" width="820">
+</p>
+<p align="center"><em>Tokyo Night desktop · one command to install · one command to switch DNS.</em></p>
+
 My complete Arch Linux desktop in **one command**: Hyprland, a Quickshell bar with notifications, rofi, kitty,
 a lock screen, an SDDM login theme and a zsh setup. Everything uses the same Tokyo Night colors and square corners.
 
@@ -42,6 +47,7 @@ Reboot afterwards and choose the **Hyprland** session in SDDM.
 | **Dark mode** | GTK, Qt and websites follow the dark theme automatically |
 | **Aliases** | `pacman` = `sudo pacman`, `yoink` = `yay -S`, `yeet` = `yay -Rns`, `yago` = `yay -Ss`, `sweep` = deep clean (see below) |
 | **yay** | Installed automatically if it is missing |
+| **DNS switcher** | `dns dns.adguard.com` switches the whole system to DNS-over-TLS. `dns status`, `dns test`, `dns stop` |
 
 ## Shortcuts
 
@@ -153,6 +159,43 @@ Press `SUPER + I`:
 Press `SUPER + SHIFT + W` (or double-click the clock) to edit: drag a widget, switch widgets on and off in the list
 at the top (more widgets will appear there later), Enter saves, `R` resets, `Delete` hides the clock.
 
+## DNS switcher (`dns`)
+
+> [!NOTE]
+> Installed by the **same** `install.sh` (skip it with `SKIP_DNS=1`). Installation never
+> changes your DNS — you decide when to switch.
+
+Plain DNS on port 53 is logged or hijacked on many networks. `dns` moves the whole system to
+**DNS-over-TLS on port 853** with a verified certificate — no third-party app, no plaintext
+fallback.
+
+| Command | What it does |
+| --- | --- |
+| `dns dns.adguard.com` | Switch to this DoT server |
+| `dns change 1.1.1.1` | The same with an IP address |
+| `dns change` | Interactive: pick a server from a prompt |
+| `dns status` · `dns test` | Inspect the state · check DNS and HTTPS |
+| `dns stop` | Restore the exact state from before the first set |
+
+```text
+dns dns.adguard.com
+  ├─ resolve the name to IPv4 (built-in provider table as fallback)
+  ├─ openssl verifies the certificate on :853        ← mandatory
+  ├─ write /etc/.../90-dns-switch.conf (resolved + NetworkManager)
+  ├─ link /etc/resolv.conf to the resolved stub
+  ├─ stop routers from pushing DNS (ignore-auto-dns = yes)
+  └─ verify DNS + HTTPS
+```
+
+**Nothing is lost.** The first `set` snapshots `/etc/resolv.conf`, all drop-ins, every
+Wi-Fi/Ethernet DNS setting and the `systemd-resolved` state into
+`/var/lib/dns-switch/backups/<timestamp>/`. `dns stop` restores that snapshot *exactly*
+instead of blindly disabling the service; legacy `krmvdns` files are backed up first too.
+
+**Strict by design.** Only port 853 is used. If a network blocks it or shows a captive
+portal, you get a clear message — run `dns stop` to return to DHCP DNS until you are
+elsewhere. Requires `openssl` (installed by `install.sh`); source: `dns/dns` in this repo.
+
 ## Cleaning up: `sweep`
 
 One command for a deep clean of Arch:
@@ -191,6 +234,7 @@ the lock screen is waiting when you open the lid. With an external monitor conne
   login). Log out and in once after `install.sh`.
   pkexec only accepts administrators from the `wheel` group: if the polkit password dialog says "Not authorized", add yourself:
   `sudo usermod -aG wheel $USER` and log in again.
+- **DNS lookups fail after `dns ...`:** only port 853 is used (no plaintext fallback), so a captive portal or a network that blocks DoT will break lookups. Run `dns stop` to return to DHCP DNS, then check `dns status` / `dns test`.
 - **A clicked link does not bring up the browser:** `hypr/conf/misc.lua` turns on `focus_on_activate`, so a window that asks
   for attention is focused (and its workspace is shown). It only works if the app that opens the link hands over the
   focus request, which most do (Telegram, Discord, Chrome, Firefox).
