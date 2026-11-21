@@ -50,8 +50,11 @@ PanelWindow {
 
     screen: Quickshell.screens[0]
     anchors { left: true; top: true }
-    // Sit below the default desktop clock (~140 px tall, vertically centered) instead of covering it.
-    margins { left: 80; top: screen ? Math.max(60, Math.round((screen.height - 140) / 2) + 160) : 60 }
+    // Sits right under the desktop clock (and under the net speed card when that is on).
+    property int clockX: -1
+    property int clockY: -1
+    property int stackOffset: 0
+    margins { left: clockX >= 0 ? clockX : 80; top: (clockY >= 0 ? clockY + 200 : (screen ? Math.round(screen.height / 2) + 105 : 100)) + stackOffset }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Bottom
     implicitWidth: 320

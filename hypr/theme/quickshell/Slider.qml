@@ -6,7 +6,7 @@ Item {
     required property var theme
     property real value: 0
     signal moved(real value)      // user dragged/clicked: new value 0..1
-    signal wheeled(int dy, int pixelDy)   // wheel over the slider (pixelDelta tells a trackpad from a mouse)
+    signal wheeled(int dy, bool inverted)   // wheel over the slider (inverted = the device uses natural scrolling)
     readonly property bool pressed: area.pressed
 
     implicitWidth: 200
@@ -27,6 +27,6 @@ Item {
         function setFrom(x) { s.moved(Math.max(0, Math.min(1, x / width))) }
         onPressed: mouse => setFrom(mouse.x)
         onPositionChanged: mouse => { if (pressed) setFrom(mouse.x) }
-        onWheel: wheel => s.wheeled(wheel.angleDelta.y, wheel.pixelDelta.y)
+        onWheel: wheel => s.wheeled(wheel.angleDelta.y, wheel.inverted)
     }
 }

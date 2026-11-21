@@ -322,15 +322,43 @@ ROWS
   done
 }
 
+# ------------------------------------------------------------------ dns
+# Uses the "dns" command (DNS-over-TLS switcher). It asks for the password itself (graphical dialog from rofi).
+dns_show() { rofi -e "$1"; }
+dns_menu() {
+  command -v dns >/dev/null 2>&1 || { note "The dns command is not installed. Run the setup installer again."; return 0; }
+  while :; do
+    pick="$(printf 'Show current DNS\nAdGuard DNS (blocks ads)\nAdGuard DNS (no filtering)\nAdGuard Family\nCloudflare 1.1.1.1\nGoogle DNS\nQuad9\nCustom server (type it)\nTest DNS\nTurn OFF (restore the original DNS)\n' \
+      | menu "DNS" "Encrypted DNS-over-TLS for the whole system.")" || return
+    server=""
+    case "$pick" in
+      "Show current"*) dns_show "$(dns status 2>&1)"; continue ;;
+      "AdGuard DNS (blocks"*) server="dns.adguard-dns.com" ;;
+      "AdGuard DNS (no"*) server="unfiltered.adguard-dns.com" ;;
+      "AdGuard Family"*) server="family.adguard-dns.com" ;;
+      "Cloudflare"*) server="cloudflare-dns.com" ;;
+      "Google"*) server="dns.google" ;;
+      "Quad9"*) server="dns.quad9.net" ;;
+      "Custom"*) server="$(printf '' | rofi -dmenu -p "DNS server" -mesg "A host or IP, e.g. dns.adguard.com or 1.1.1.1")" || continue ;;
+      "Test"*) dns_show "$(dns test 2>&1)"; continue ;;
+      "Turn OFF"*) dns_show "$(dns stop 2>&1)"; continue ;;
+      *) return ;;
+    esac
+    [ -n "$server" ] || continue
+    dns_show "$(dns "$server" 2>&1)"
+  done
+}
+
 # ------------------------------------------------------------------ main menu
 main() {
   while :; do
-    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nNetwork (Wi-Fi autoconnect)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
+    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nNetwork (Wi-Fi autoconnect)\nDNS (change or turn off)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
     case "$pick" in
       "Default apps") default_apps_menu ;;
       "Keyboard shortcuts") shortcuts_menu ;;
       "Desktop widgets"*) widgets_menu ;;
       "Network"*) network_menu ;;
+      "DNS"*) dns_menu ;;
       "Location"*) location_menu ;;
       "Audio"*) audio_menu ;;
       "Night mode"*) sh "$CFG/scripts/nightmode.sh" toggle ;;

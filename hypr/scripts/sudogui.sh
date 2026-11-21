@@ -100,17 +100,21 @@ run_mode() {
   return 0
 }
 
+# The root app reads YOUR theme files (qt6ct/qt5ct palette, GTK settings), so every root window matches the desktop.
+USER_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 for m in $modes; do
   case "$m" in
     wayland)
       run_mode "Wayland" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" \
         DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        QT_QPA_PLATFORM=wayland GDK_BACKEND=wayland GTK_THEME=Adwaita-dark QT_QPA_PLATFORMTHEME=qt6ct \
+        QT_QPA_PLATFORM=wayland GDK_BACKEND=wayland QT_QPA_PLATFORMTHEME="qt6ct:qt5ct" QT_STYLE_OVERRIDE=Fusion XDG_CONFIG_HOME="${USER_CONFIG:-$HOME/.config}" GTK_THEME=Adwaita:dark \
+        XCURSOR_SIZE=24 \
         "$@" && exit 0 ;;
     x11)
       run_mode "X11 (XWayland)" DISPLAY="${DISPLAY:-:0}" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" \
         XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR" DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS" \
-        QT_QPA_PLATFORM=xcb GDK_BACKEND=x11 GTK_THEME=Adwaita-dark QT_QPA_PLATFORMTHEME=qt6ct \
+        QT_QPA_PLATFORM=xcb GDK_BACKEND=x11 QT_QPA_PLATFORMTHEME="qt6ct:qt5ct" QT_STYLE_OVERRIDE=Fusion XDG_CONFIG_HOME="${USER_CONFIG:-$HOME/.config}" GTK_THEME=Adwaita:dark \
+        XCURSOR_SIZE=24 \
         "$@" && exit 0 ;;
   esac
   [ "$m" = "${modes##* }" ] || info "trying the next way..."

@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Services.Notifications
+import Quickshell.Wayland
 
 Scope {
     id: root
@@ -21,12 +22,16 @@ Scope {
     }
 
     PanelWindow {
+        id: popup
+        property bool typing: false            // true only while you type into a reply box
         screen: Quickshell.screens[0]
         visible: server.trackedNotifications.values.length > 0
+        onVisibleChanged: if (!visible) typing = false
         anchors { top: true; right: true }
         margins { top: 38; right: 12 }
         exclusionMode: ExclusionMode.Ignore
-        focusable: true            // lets you type into the reply box
+        // Never take the keyboard from the app you are working in; ask for it only while a reply is typed.
+        WlrLayershell.keyboardFocus: typing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
         implicitWidth: 360
         implicitHeight: list.implicitHeight
         color: "transparent"
@@ -42,6 +47,7 @@ Scope {
                     required property var modelData
                     theme: root.theme
                     notif: modelData
+                    onWantsTyping: on => popup.typing = on
                     duration: root.timeout
                 }
             }

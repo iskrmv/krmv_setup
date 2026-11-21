@@ -43,7 +43,11 @@ Rectangle {
         if (replyInput.text.trim() === "") return
         notif.sendInlineReply(replyInput.text)
         replyInput.text = ""
+        card.wantsTyping(false)
     }
+    // Keyboard focus is requested only while you type a reply; a new notification never steals it.
+    signal wantsTyping(bool on)
+    Timer { id: focusTimer; interval: 80; onTriggered: replyInput.forceActiveFocus() }
 
     // The countdown. It pauses while the mouse is over the card.
     NumberAnimation on remaining {
@@ -140,6 +144,7 @@ Rectangle {
             color: Qt.rgba(1, 1, 1, 0.06)
             border.width: 1
             border.color: replyInput.activeFocus ? card.theme.icon : card.theme.muted
+            MouseArea { anchors.fill: parent; onPressed: mouse => { card.wantsTyping(true); focusTimer.restart(); mouse.accepted = false } }
             TextInput {
                 id: replyInput
                 anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
@@ -147,6 +152,7 @@ Rectangle {
                 color: card.theme.fg; clip: true
                 font.family: card.theme.font; font.pixelSize: card.theme.size - 2
                 onAccepted: card.sendReply()
+                Keys.onEscapePressed: { replyInput.focus = false; card.wantsTyping(false) }
                 Text {
                     visible: replyInput.text === ""
                     anchors.fill: parent; verticalAlignment: Text.AlignVCenter

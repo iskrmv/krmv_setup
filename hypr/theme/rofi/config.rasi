@@ -10,14 +10,10 @@ configuration {
     sorting-method: "fzf";
     scroll-method: 1;                 /* continuous scrolling instead of jumping a whole page */
     /* Not in the list? Type the command and press Enter (or Ctrl+Enter to force it).
-       run-cmd opens terminal apps (btop, impala, nvim ...) inside kitty and everything else directly. */
+       run-cmd opens terminal apps (btop, tork, nvim ...) inside kitty and everything else directly. */
     run-command: "run-cmd {cmd}";
     run-shell-command: "run-cmd {cmd}";
     terminal: "kitty";
-    /* rofi-wayland reports the wheel direction the other way round from native apps: swap it.
-       If scrolling feels reversed for you, delete these two lines. */
-    ml-row-up: "ScrollDown";
-    ml-row-down: "ScrollUp";
 }
 
 * {

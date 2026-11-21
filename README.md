@@ -50,14 +50,14 @@ Three rules keep it lazy in the good sense:
 | **On-screen display** | Volume and brightness changes (Fn keys, scroll, sliders) show a small level indicator at the bottom center. It shows "Muted" when muted |
 | **Media** | Any player that speaks MPRIS (Spotify, VLC, mpv, YouTube / Netflix / music in Chrome or Firefox): back / play-pause / next, the title and the time between the launcher and the clock. Hover for the full info and a seek slider |
 | **Volume mixer** | Hover the volume icon: master slider; click the small arrow (bottom right) for one slider and mute per app. Every app with an audio stream is listed (Steam, Telegram, Discord, browsers...). Running apps that are silent at the moment are listed too, and their slider works: the volume is remembered and applied when the app starts making sound |
-| **Settings** | `SUPER + I` (or type "settings" in the command launcher) opens one rofi hub: **default apps** (browser, files, terminal, editor, video, music, images, PDF, camera + a "More" mode for exact file types), **keyboard shortcuts**, **desktop widgets**, **location permissions**, **audio** and night mode. Everyone picks their own apps and keys |
+| **Settings** | `SUPER + I` (or type "settings" in the command launcher) opens one rofi hub: **default apps** (browser, files, terminal, editor, video, music, images, PDF, camera + a "More" mode for exact file types), **keyboard shortcuts**, **desktop widgets**, **DNS (change / turn off)**, **location permissions**, **audio** and night mode. Everyone picks their own apps and keys |
 | **Default apps** | `SUPER + E` opens your default file manager (yazi by default), `SUPER + B` your default browser, `SUPER + Return` your default terminal |
 | **Info boxes** | Volume and brightness, the media keys (play / pause / next / previous) and the touchpad key show a small box at the bottom center, like Windows. The media box appears only for the keys, not when you click inside a player |
 | **Clock app** | Timer, alarms (with days and labels) and a stopwatch. Click the clock in the bar or press `SUPER + C`. An alarm or a finished timer rings with a sound and a window (Enter dismisses, S snoozes 5 minutes). Alarms and the running timer are remembered after a restart |
 | **Images** | [swayimg](https://github.com/artemsen/swayimg) is the default image viewer: tiny, native Wayland, opens nearly every format (PNG, JPEG, GIF, WebP, AVIF, HEIC, **SVG** via `librsvg`, TIFF, RAW, JXL). It gets a Tokyo Night `init.lua`. Edit-heavy work: open the file in Photoshop/GIMP from the viewer or yazi |
 | **Night mode** | Open the brightness popup and click its small arrow: a night mode switch (blue light filter, `hyprsunset`) |
 | **Terminal greeting** | `fastfetch` with the Tokyo Night theme greets you in zsh, bash and fish |
-| **Keyboard / touchpad** | English + Russian by default. The bar chip shows the layout; **switching shows an info box**; click = next layout, **right-click = add / remove layouts** (any language). Touchpad: natural scrolling ON, speed `0.5`; USB mouse: normal scrolling. Over the volume/brightness chips two fingers up = more on a touchpad, wheel up = more on a mouse |
+| **Keyboard / touchpad** | English + Russian by default. The bar chip shows the layout; **switching shows an info box**; click = next layout, **right-click = add / remove layouts** (any language). Touchpad: natural scrolling ON, speed `0.5`; USB mouse: normal scrolling. Over the volume/brightness chips two fingers up = more on a touchpad, wheel up = more on a mouse (the bar asks Qt which devices use natural scrolling) |
 | **Editor** | Neovim with [LazyVim](https://www.lazyvim.org/) (the official starter, plugins pre-downloaded). `vim` is an alias for `nvim` |
 | **Calculator** | [Arithmetic](https://github.com/armanmaurya/arithmetic) (Rust + Slint), installed by `install.sh`; the calculator key opens it floating in the middle of the screen |
 | **Desktop clock** | The day in big stylized letters with the date and the time under it, same look as KDE's [Modern Clock](https://store.kde.org/p/2135653). Settings at the top of `DesktopClock.qml`. Extra net-speed and media cards can be switched on in `SUPER + SHIFT + W` |
@@ -72,7 +72,7 @@ Three rules keep it lazy in the good sense:
 | **DNS switcher** | `dns dns.adguard.com` switches the whole system to DNS-over-TLS. `dns status`, `dns test`, `dns stop` |
 | **NetworkManager** | The standard Arch `networkmanager` package with `wpa_supplicant` and the `NetworkManager.service` enabled. Saved Wi-Fi profiles are switched to **autoconnect = yes** by `install.sh`; `SUPER + SHIFT + N` opens the Wi-Fi menu |
 | **Root GUI apps** | `sudogui` tries Wayland, then XWayland. The password dialog and Qt apps use the Tokyo Night Qt palette (`qt6ct`), GTK apps the dark theme. From rofi it uses the graphical `pkexec` dialog, from a terminal `sudo`. `sudogui --check` explains what is missing |
-| **Net speed** | Live `↓ / ↑` rates. Top bar and desktop card are **two separate switches**, both **off by default** (`SUPER + I` → Desktop widgets, or `SUPER + SHIFT + W`) |
+| **Net speed** | Live `↓ / ↑` rates with a speedometer icon, in the top bar between the clock and the CPU icon, and as a desktop card in the same style as the big clock (it sits under the clock and follows it). Top bar and desktop card are **two separate switches**, both **off by default** (`SUPER + I` → Desktop widgets, or `SUPER + SHIFT + W`) |
 | **Media output widget** | A separate "now playing" desktop card with cover art and a progress bar (**off by default**); the compact bar media line is always there between the launcher and the clock |
 | **Color picker** | `SUPER + SHIFT + P` picks any pixel with `hyprpicker` and copies the hex value to the clipboard |
 | **Camera** | `SUPER + SHIFT + O` opens `snapshot` (GNOME Camera, simple and dark-theme friendly) |
@@ -82,7 +82,7 @@ Three rules keep it lazy in the good sense:
 | **Location** | Settings → Location: GeoClue app permissions (`/etc/geoclue/geoclue.conf`). Pick an app to switch ALLOWED / DENIED, or add one by its desktop id. A GeoClue agent runs at login for apps not on the list |
 | **Audio** | Settings → Audio: **"Laptop speakers too quiet?"** raises every hidden ALSA level (Master, Speaker, PCM...) to 100% and saves it; select an output; copy diagnostics |
 | **Calendar reminders** | Click the clock → **Reminders** tab: pick a day, type `HH:MM` and a text, Enter. At that minute a notification pops up. Days with reminders get a dot in the hover calendar. Stored in `~/.local/state/krmv-setup/reminders.json` |
-| **rofi launcher** | `ALT + SPACE`: type letters and apps that **start** with them come first, looser guesses below (`len` → Lens... first, Blender after). Not listed (a CLI tool like `btop`, `impala`, `nvim`)? Type its name and press Enter; terminal programs open in your terminal automatically. Mistyped name → a clear red error box. Rofi has your Tokyo Night theme |
+| **rofi launcher** | `ALT + SPACE`: type letters and apps that **start** with them come first, looser guesses below (`len` → Lens... first, Blender after). For command-line / terminal tools type **`run <command>`** (`run btop`, `run tork`, `run nvim`): it opens in your terminal and waits for Enter when the command ends. A bare command name also works. Mistyped name → a clear red error box. Scrolling is right for touchpad **and** mouse (a small `rofi` wrapper handles it) |
 
 | **yazi** | Preview pane and image previews are on by default (hidden files are off; press `.` in yazi to toggle them); everything opens with your default apps (`xdg-open`). Settings → Default apps → **More** picks an app per exact file type |
 
@@ -95,7 +95,10 @@ Three rules keep it lazy in the good sense:
 | I want to... | Do this |
 | --- | --- |
 | Open an app | `ALT + SPACE`, type its first letters, Enter |
-| Run a command-line tool | `ALT + SPACE`, type its name (`btop`, `impala`, `nvim`), Enter |
+| Run a command-line tool | `ALT + SPACE`, type `run btop` (or `run tork`, `run nvim`), Enter |
+| See / switch between all open windows | `ALT + TAB` |
+| Change or turn off DNS | `SUPER + I` → DNS |
+| Download torrents in the terminal | `ALT + SPACE`, `run tork` |
 | See every shortcut | `SUPER + /` |
 | Change a shortcut or a default app | `SUPER + I` |
 | Add a keyboard layout | Right-click the `EN` chip in the bar |
@@ -107,7 +110,6 @@ Three rules keep it lazy in the good sense:
 | Quiet laptop speakers | `SUPER + I` → Audio → "Laptop speakers too quiet?" |
 | Add a reminder | Click the clock → Reminders |
 | Free disk space | `sweep` (or `sweep --all`) |
-| Fix a Wi-Fi TUI | `impala` needs iwd: run `WIFI_IWD=1 bash install.sh` once |
 | Find out why something is broken | `hyprctl configerrors`, `sudogui --check`, run `qs -p ~/.config/hypr/theme/quickshell/shell.qml` in a terminal |
 
 **Where things live**
@@ -144,6 +146,7 @@ Press **SUPER + /** at any time to see this list on screen.
 | `SUPER + SHIFT + P` | Color picker (copy a hex value) |
 | `SUPER + SHIFT + O` | Camera |
 | `SUPER + SHIFT + T` | System monitor (btop, in the default terminal) |
+| `ALT + TAB` | List every open window (last used first); Enter switches |
 | `SUPER + SHIFT + A` | Choose an audio output |
 | `SUPER + SHIFT + N` | Wi-Fi / NetworkManager menu (autoconnect, connect, list) |
 | `SUPER + SHIFT + S` | Screenshot: select an area |
@@ -389,3 +392,10 @@ Not covered by it:
 
 - Built for Arch Linux. Needs Hyprland with the Lua config (0.55 or newer) and Quickshell.
 - Quickshell is installed from the official repository when it is there, otherwise from the AUR (`quickshell-git`).
+
+## A note on AI
+
+Honesty first: the bug fixes in this repository were made with the help of AI tools (Claude and opencode), and
+every change was then reviewed and tested by hand on my own laptop. The ideas, the design, the look and the
+decisions are mine; the AI helped to find and fix bugs faster. If you use this setup and read the code, you will
+find it plain shell, Lua and QML, with comments that explain *why* things are done: judge it by what it does.

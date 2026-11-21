@@ -11,7 +11,6 @@
 #   SKIP_ZSH=1       do not touch zsh
 #   SKIP_NVIM=1      do not install LazyVim
 #   SKIP_DNS=1       do not install the dns command (DNS-over-TLS switcher)
-#   WIFI_IWD=1       switch NetworkManager to the iwd Wi-Fi backend so that "impala" works (off by default)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,10 +63,8 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     fastfetch hyprsunset xdg-utils
     # clock app alarm sound; image viewer (swayimg: tiny, native Wayland, opens nearly every format incl. SVG)
     sound-theme-freedesktop swayimg libheif libjxl libavif libraw librsvg libwebp
-    # impala: Wi-Fi TUI (type "impala" in the launcher). It talks to iwd, see the optional WIFI_IWD=1 step below.
-    impala iwd
     # dark mode
-    gnome-themes-extra adwaita-icon-theme dconf qt6ct
+    gnome-themes-extra adwaita-icon-theme dconf qt6ct qt5ct
     # shell
     zsh zsh-autosuggestions zsh-syntax-highlighting zsh-theme-powerlevel10k
     # dns tool (openssl verifies the DoT certificate; curl checks the result)
@@ -83,6 +80,7 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
 
   command -v qs >/dev/null 2>&1 || aur+=("quickshell-git")
   aur+=("mpvpaper")   # animated/video wallpapers: AUR-only (yay pulls its mpv dependency automatically)
+  aur+=("tork")       # torrent search + download TUI (type "run tork" in the launcher)
   # the powerlevel10k package is called zsh-theme-powerlevel10k-git in the AUR
   for i in "${!aur[@]}"; do
     if [ "${aur[i]}" = "zsh-theme-powerlevel10k" ]; then aur[i]="zsh-theme-powerlevel10k-git"; fi
@@ -163,6 +161,8 @@ rm -f "$CFG/hypr/conf/mice.lua" "$CFG/hypr/scripts/mouse-scroll.sh"   # leftover
 # A real command, not a shell alias: the rofi launcher uses non-interactive shells where aliases do not exist.
 sudo install -Dm755 "$HERE/hypr/scripts/sudogui.sh" /usr/local/bin/sudogui
 sudo install -Dm755 "$HERE/hypr/scripts/run-cmd.sh" /usr/local/bin/run-cmd      # the rofi launcher runs typed commands through it
+# "rofi" wrapper: fixes the scroll direction inside rofi for touchpad AND mouse (calls the real /usr/bin/rofi)
+sudo install -Dm755 "$HERE/hypr/scripts/rofi-wrap.sh" /usr/local/bin/rofi
 
 # ------------------------------------------------------------------ 2b. Anurati font (desktop clock)
 # Not stored in this repo (it is free for personal use only): it is downloaded from the original KDE widget's repository.
@@ -239,6 +239,17 @@ mkdir -p "$CFG/qt6ct/colors"
 cp "$CFG/hypr/theme/qt6ct/colors/krmv-tokyo.conf" "$CFG/qt6ct/colors/krmv-tokyo.conf"
 sed -i "s|^color_scheme_path=.*|color_scheme_path=$CFG/qt6ct/colors/krmv-tokyo.conf|" "$CFG/hypr/theme/qt6ct/qt6ct.conf"   # qt6ct needs an absolute path
 link_cfg "$CFG/hypr/theme/qt6ct/qt6ct.conf"              "$CFG/qt6ct/qt6ct.conf"
+# the same palette for Qt5 apps (many root tools such as Ventoy are Qt5/GTK)
+mkdir -p "$CFG/qt5ct/colors"
+cp "$CFG/hypr/theme/qt6ct/colors/krmv-tokyo.conf" "$CFG/qt5ct/colors/krmv-tokyo.conf"
+sed "s|$CFG/qt6ct/|$CFG/qt5ct/|" "$CFG/hypr/theme/qt6ct/qt6ct.conf" > "$CFG/qt5ct/qt5ct.conf"
+# session-wide theme variables, also for the polkit password dialog (it is started by systemd, not by Hyprland)
+mkdir -p "$CFG/environment.d"
+cat > "$CFG/environment.d/10-krmv-theme.conf" <<'ENVEOF'
+QT_QPA_PLATFORMTHEME=qt6ct:qt5ct
+QT_STYLE_OVERRIDE=Fusion
+GTK_THEME=Adwaita:dark
+ENVEOF
 sh "$CFG/hypr/scripts/dark-mode.sh" 2>/dev/null || true   # applies right away when a session bus exists
 
 # swayimg: Tokyo Night colors (init.lua is only used by swayimg 4.x; older versions ignore it). Never overwritten.
@@ -339,14 +350,6 @@ sh "$CFG/hypr/scripts/network.sh" autoconnect || warn "Could not enable Wi-Fi au
 
 # The bar is the notification daemon, so make sure mako is not running
 pkill -x mako 2>/dev/null || true
-
-# Optional: let NetworkManager use iwd for Wi-Fi so that the "impala" Wi-Fi TUI works next to the bar's Wi-Fi panel.
-if [ -n "${WIFI_IWD:-}" ]; then
-  say "Switching NetworkManager to the iwd Wi-Fi backend"
-  printf '[device]\nwifi.backend=iwd\n' | sudo tee /etc/NetworkManager/conf.d/20-iwd.conf >/dev/null
-  sudo systemctl enable --now iwd || true
-  echo "iwd backend written. Reboot (or restart NetworkManager) to apply it."
-fi
 
 # ------------------------------------------------------------------ 5b. DNS switcher (dns)
 # Only installs the command. It never changes the user's DNS settings.

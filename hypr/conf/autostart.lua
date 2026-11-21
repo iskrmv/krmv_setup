@@ -8,7 +8,7 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("blueman-applet")                                   -- bluetooth pairing agent (for PIN dialogs)
   hl.exec_cmd("hypridle")                                         -- locks the screen before sleep / lid close
   -- polkit agent: shows the graphical password dialog for pkexec (Ventoy, GParted, ...). Its binary is NOT in PATH.
-  hl.exec_cmd("sh -c 'for b in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent; do [ -x \"$b\" ] && exec \"$b\"; done; systemctl --user start hyprpolkitagent.service'")
+  hl.exec_cmd("sh -c 'export QT_QPA_PLATFORMTHEME=qt6ct QT_STYLE_OVERRIDE=Fusion; for b in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent; do [ -x \"$b\" ] && exec \"$b\"; done; systemctl --user start hyprpolkitagent.service'")
   hl.exec_cmd("sh ~/.config/hypr/scripts/nightmode.sh restore")      -- night mode comes back if it was on
   hl.exec_cmd("playerctld daemon")                                -- media keys control the player you used last
   hl.exec_cmd("sh -c 'sleep 3; xhost +SI:localuser:root'")        -- lets root GUI apps (Ventoy, PINCE, GParted) open windows

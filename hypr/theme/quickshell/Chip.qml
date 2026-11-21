@@ -9,6 +9,7 @@ Item {
     property string icon: ""
     property color iconColor: theme.icon
     property string label: ""        // always-visible text (e.g. volume %)
+    property string reserveLabel: "" // widest text the label can show: the chip keeps that width, so neighbours never shift
     property string tip: ""          // text shown in the floating popup on hover
     property bool ramIcon: false     // draw the RAM stick instead of a font glyph
     property bool slider: false      // popup shows a slider instead of the text tip
@@ -20,7 +21,7 @@ Item {
     readonly property bool engaged: area.containsMouse || hoverPopup || showPopup   // icon or its popup is in use
     signal clicked()
     signal rightClicked()
-    signal scrolled(int dy, int pixelDy)
+    signal scrolled(int dy, bool inverted)
     signal sliderMoved(real value)
 
     // Only ONE popup is open at a time: hovering another icon closes this popup immediately
@@ -74,7 +75,13 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         RamIcon { visible: chip.ramIcon; color: chip.iconColor }
         Text { visible: !chip.ramIcon; text: chip.icon; color: chip.iconColor; font.family: chip.theme.font; font.pixelSize: chip.theme.size + 2 }
-        Text { visible: chip.label !== ""; text: chip.label; color: chip.theme.fg; font.family: chip.theme.font; font.pixelSize: chip.theme.size }
+        TextMetrics { id: reserveMetrics; text: chip.reserveLabel; font.family: chip.theme.font; font.pixelSize: chip.theme.size }
+        Text {
+            visible: chip.label !== ""; text: chip.label; color: chip.theme.fg
+            width: chip.reserveLabel !== "" ? Math.ceil(reserveMetrics.advanceWidth) + 1 : implicitWidth
+            horizontalAlignment: Text.AlignLeft
+            font.family: chip.theme.font; font.pixelSize: chip.theme.size
+        }
     }
 
     MouseArea {
@@ -83,7 +90,7 @@ Item {
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onClicked: mouse => { if (mouse.button === Qt.RightButton) chip.rightClicked(); else chip.clicked() }
-        onWheel: wheel => chip.scrolled(wheel.angleDelta.y, wheel.pixelDelta.y)
+        onWheel: wheel => chip.scrolled(wheel.angleDelta.y, wheel.inverted)
     }
 
     PopupWindow {
@@ -134,7 +141,7 @@ Item {
                     theme: chip.theme
                     value: chip.sliderValue
                     onMoved: v => chip.sliderMoved(v)
-                    onWheeled: (dy, py) => chip.scrolled(dy, py)
+                    onWheeled: (dy, inv) => chip.scrolled(dy, inv)
                 }
                 // Small arrow (right): opens / closes the extra area. It turns smoothly.
                 Item {

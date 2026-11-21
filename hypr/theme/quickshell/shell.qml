@@ -101,9 +101,9 @@ ShellRoot {
     function toggleMute() { if (hasAudio) sink.audio.muted = !sink.audio.muted }
     // 5% per mouse-wheel notch (120 units); a trackpad sends many small amounts, so it scrolls smoothly
     function scrollDelta(dy) { return (theme.naturalScroll ? -dy : dy) / 120 * 0.05 }
-    // Controls keep "two fingers UP = more": touchpad natural scrolling reverses the angleDelta sign,
-    // so invert it only when pixelDelta is present (trackpad). A plain mouse wheel keeps its normal direction.
-    function controlScrollDelta(dy, pixelDy) { return (pixelDy !== 0 ? -dy : dy) / 120 * 0.05 }
+    // Volume / brightness: wheel up OR two fingers up = more, on every device.
+    // Qt reports "inverted" for a device with natural scrolling (the touchpad), so undoing it gives the physical direction.
+    function controlScrollDelta(dy, inverted) { return (inverted ? -dy : dy) / 120 * 0.05 }
 
     // ---- Per-app volume mixer (opened with the small arrow in the volume popup) ----
     // Every app that has an audio stream is listed (playing or paused), one row per app. Apps that are running and can
@@ -536,13 +536,19 @@ ShellRoot {
         visible: !root.moveMode && root.widgetEnabled.netspeed === true
         theme: root.theme
         iface: root.netIface
-        speedText: root.netSpeedText
+        downText: root.fmtRate(root.netDownRate) + "/s"
+        upText: root.fmtRate(root.netUpRate) + "/s"
+        clockX: root.clockX
+        clockY: root.clockY
         receivedText: root.fmtBytes(root.netRxBytes)
         sentText: root.fmtBytes(root.netTxBytes)
     }
     MediaOutputWidget {
         visible: !root.moveMode && root.widgetEnabled.mediaout === true
         theme: root.theme
+        clockX: root.clockX
+        clockY: root.clockY
+        stackOffset: root.widgetEnabled.netspeed === true ? 130 : 0     // sits under the net speed card when both are on
     }
     WidgetMover {
         visible: root.moveMode
@@ -719,7 +725,7 @@ ShellRoot {
                     anchors { left: parent.left; verticalCenter: parent.verticalCenter; leftMargin: 12 }
                     spacing: 14
 
-                    Chip { theme: root.theme; icon: "\uf303"; onClicked: Quickshell.execDetached(["rofi", "-show", "drun"]) }
+                    Chip { theme: root.theme; icon: "\uf303"; onClicked: Quickshell.execDetached(["sh", Quickshell.env("HOME") + "/.config/hypr/scripts/launcher.sh"]) }
 
                     Repeater {
                         model: Hyprland.workspaces
@@ -761,6 +767,16 @@ ShellRoot {
                     anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 12 }
                     spacing: 14
 
+                    Chip {
+                        theme: root.theme
+                        popupId: "netspeed"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "netspeed"
+                        visible: root.widgetEnabled.netspeedbar === true
+                        icon: "\uDB81\uDCC5"
+                        label: root.netSpeedText
+                        reserveLabel: "\u2193 99.9M \u2191 99.9M"
+                        tip: root.netSpeedTip
+                    }
+
                     Chip { theme: root.theme; icon: "\uf2db"; tip: root.cpuTip; popupId: "cpu"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "cpu"; onHoveredChanged: root.cpuHover = hovered }
                     Chip { theme: root.theme; ramIcon: true;    tip: root.memTip; popupId: "mem"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "mem"; onHoveredChanged: root.memHover = hovered }
                     Chip { theme: root.theme; icon: "\uf0a0"; tip: root.diskTip; popupId: "disk"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "disk"; onHoveredChanged: root.diskHover = hovered }
@@ -785,13 +801,14 @@ Right-click: add / remove layouts"
                         visible: root.hasBright
                         icon: "\uf185"
                         label: Math.round(root.brightPct * 100) + "%"
+                        reserveLabel: "100%"
                         slider: true
                         sliderValue: root.brightPct
                         sliderTitle: "Brightness " + Math.round(root.brightPct * 100) + "%"
                         extra: nightMixer
                         onSliderMoved: v => root.setBrightness(v)
                         onEngagedChanged: root.brightEngaged = engaged
-                        onScrolled: (dy, py) => root.setBrightness(root.brightPct + root.controlScrollDelta(dy, py))
+                        onScrolled: (dy, inv) => root.setBrightness(root.brightPct + root.controlScrollDelta(dy, inv))
                     }
 
                     Chip {
@@ -800,6 +817,7 @@ Right-click: add / remove layouts"
                         icon: root.muted ? "\uf026" : "\uf028"
                         iconColor: root.muted ? root.theme.red : root.theme.icon
                         label: Math.round(root.volume * 100) + "%"
+                        reserveLabel: "100%"
                         slider: true
                         sliderValue: root.volume
                         sliderTitle: (root.muted ? "Volume (muted) " : "Volume ") + Math.round(root.volume * 100) + "%"
@@ -807,16 +825,7 @@ Right-click: add / remove layouts"
                         onSliderMoved: v => root.setVolume(v)
                         onClicked: root.toggleMute()
                         onEngagedChanged: root.volEngaged = engaged
-                        onScrolled: (dy, py) => root.setVolume(root.volume + root.controlScrollDelta(dy, py))
-                    }
-
-                    Chip {
-                        theme: root.theme
-                        popupId: "netspeed"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "netspeed"
-                        visible: root.widgetEnabled.netspeedbar === true
-                        icon: "\uf3fd"
-                        label: root.netSpeedText
-                        tip: root.netSpeedTip
+                        onScrolled: (dy, inv) => root.setVolume(root.volume + root.controlScrollDelta(dy, inv))
                     }
 
                     Chip {
