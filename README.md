@@ -20,8 +20,12 @@ Reboot afterwards and choose the **Hyprland** session in SDDM.
 ## Why this exists
 
 > [!IMPORTANT]
-> **The lazy-man rule:** if a thing is worth doing once, it is worth doing in one command — and writing
-> it down so the next machine takes five minutes, not an evening of "why does this key not work again?".
+> **I am lazy. That is exactly why this exists.**
+> I do not want to fix the same thing twice, so I built a desktop that sets itself up in one command and
+> keeps every setting one keypress away. Laziness is not the enemy of good work, it is the reason for it.
+
+> *"Laziness: the quality that makes you go to great effort to reduce overall energy expenditure."*
+> — **Larry Wall**, creator of Perl (*Programming Perl*)
 
 This repository is my own Arch setup, kept as a single source of truth. It is deliberately opinionated:
 one Tokyo Night palette, square corners, the same key names on every monitor, and **one installer**.
@@ -30,7 +34,7 @@ no hidden step you have to remember. If you change something by hand and it turn
 it back in the repo and run `bash install.sh` again; the installer is safe to re-run and backs up files
 it replaces.
 
-Three rules keep it lazy in the good sense:
+Three rules keep the laziness honest:
 
 1. **Install once.** `bash install.sh` installs the desktop, packages, themes, the `dns` command, wallpapers
    and config files. `SKIP_*=1` variables skip a part when you want to.
@@ -71,8 +75,8 @@ Three rules keep it lazy in the good sense:
 | **yay** | Installed automatically if it is missing |
 | **DNS switcher** | `dns dns.adguard.com` switches the whole system to DNS-over-TLS. `dns status`, `dns test`, `dns stop` |
 | **NetworkManager** | The standard Arch `networkmanager` package with `wpa_supplicant` and the `NetworkManager.service` enabled. Saved Wi-Fi profiles are switched to **autoconnect = yes** by `install.sh`; `SUPER + SHIFT + N` opens the Wi-Fi menu |
-| **Root GUI apps** | `sudogui` tries Wayland, then XWayland. The password dialog and Qt apps use the Tokyo Night Qt palette (`qt6ct`), GTK apps the dark theme. From rofi it uses the graphical `pkexec` dialog, from a terminal `sudo`. `sudogui --check` explains what is missing |
-| **Net speed** | Live `↓ / ↑` rates with a speedometer icon, in the top bar between the clock and the CPU icon, and as a desktop card in the same style as the big clock (it sits under the clock and follows it). Top bar and desktop card are **two separate switches**, both **off by default** (`SUPER + I` → Desktop widgets, or `SUPER + SHIFT + W`) |
+| **Root GUI apps** | `sudogui` tries Wayland, then XWayland. The password dialog is a polkit agent built into the Quickshell bar (`PolkitDialog.qml`, same theme as the bar; it falls back to `hyprpolkitagent` on an old Quickshell), and Qt apps use the Tokyo Night Qt palette (`qt6ct` / `qt5ct`), GTK apps the dark theme. From rofi it uses the graphical `pkexec` dialog, from a terminal `sudo`. `sudogui --check` explains what is missing |
+| **Net speed** | Live `↓ / ↑` rates with a speedometer icon, in the top bar between the clock and the CPU icon, and as a desktop widget in the style of the big clock (no card, two big rows: download and upload). Every desktop widget can be dragged to its own place in the editor (`SUPER + SHIFT + W`, or double-click a widget); until you move it, it sits under the clock. Top bar and desktop card are **two separate switches**, both **off by default** (`SUPER + I` → Desktop widgets, or `SUPER + SHIFT + W`) |
 | **Media output widget** | A separate "now playing" desktop card with cover art and a progress bar (**off by default**); the compact bar media line is always there between the launcher and the clock |
 | **Color picker** | `SUPER + SHIFT + P` picks any pixel with `hyprpicker` and copies the hex value to the clipboard |
 | **Camera** | `SUPER + SHIFT + O` opens `snapshot` (GNOME Camera, simple and dark-theme friendly) |
@@ -82,11 +86,11 @@ Three rules keep it lazy in the good sense:
 | **Location** | Settings → Location: GeoClue app permissions (`/etc/geoclue/geoclue.conf`). Pick an app to switch ALLOWED / DENIED, or add one by its desktop id. A GeoClue agent runs at login for apps not on the list |
 | **Audio** | Settings → Audio: **"Laptop speakers too quiet?"** raises every hidden ALSA level (Master, Speaker, PCM...) to 100% and saves it; select an output; copy diagnostics |
 | **Calendar reminders** | Click the clock → **Reminders** tab: pick a day, type `HH:MM` and a text, Enter. At that minute a notification pops up. Days with reminders get a dot in the hover calendar. Stored in `~/.local/state/krmv-setup/reminders.json` |
-| **rofi launcher** | `ALT + SPACE`: type letters and apps that **start** with them come first, looser guesses below (`len` → Lens... first, Blender after). For command-line / terminal tools type **`run <command>`** (`run btop`, `run tork`, `run nvim`): it opens in your terminal and waits for Enter when the command ends. A bare command name also works. Mistyped name → a clear red error box. Scrolling is right for touchpad **and** mouse (a small `rofi` wrapper handles it) |
+| **rofi launcher** | `ALT + SPACE`: **`Tab` switches to the list of command-line / terminal programs** (and back); type letters and apps that **start** with them come first, looser guesses below (`len` → Lens... first, Blender after). For command-line / terminal tools type **`run <command>`** (`run btop`, `run tork`, `run nvim`): it opens in your terminal and waits for Enter when the command ends. A bare command name also works. Mistyped name → a clear red error box. Scrolling is right for touchpad **and** mouse (a small `rofi` wrapper handles it) |
 
 | **yazi** | Preview pane and image previews are on by default (hidden files are off; press `.` in yazi to toggle them); everything opens with your default apps (`xdg-open`). Settings → Default apps → **More** picks an app per exact file type |
 
-## The lazy-man guide (read this next time)
+## The lazy guide (read this next time)
 
 **New machine:** `git clone https://github.com/iskrmv/krmv-setup.git && cd krmv-setup && bash install.sh`, reboot, choose Hyprland. Done.
 
@@ -95,7 +99,7 @@ Three rules keep it lazy in the good sense:
 | I want to... | Do this |
 | --- | --- |
 | Open an app | `ALT + SPACE`, type its first letters, Enter |
-| Run a command-line tool | `ALT + SPACE`, type `run btop` (or `run tork`, `run nvim`), Enter |
+| Run a command-line tool | `ALT + SPACE`, press `Tab` for the command list (or type `run btop`), Enter |
 | See / switch between all open windows | `ALT + TAB` |
 | Change or turn off DNS | `SUPER + I` → DNS |
 | Download torrents in the terminal | `ALT + SPACE`, `run tork` |
@@ -105,11 +109,13 @@ Three rules keep it lazy in the good sense:
 | Pick a color from the screen | `SUPER + SHIFT + P` |
 | Screenshot an area (screen freezes) | `SUPER + SHIFT + S` |
 | Use an animated wallpaper | Copy a video/GIF into `~/.config/hypr/wallpapers/animated`, press `SUPER + W` until it shows |
-| Show net speed / media card | `SUPER + I` → Desktop widgets |
+| Show net speed / media widget | `SUPER + I` → Desktop widgets |
+| Move the clock, net speed or media widget | `SUPER + SHIFT + W`, drag each one, `Enter` saves, `R` resets all |
 | Allow or block an app's location | `SUPER + I` → Location |
 | Quiet laptop speakers | `SUPER + I` → Audio → "Laptop speakers too quiet?" |
 | Add a reminder | Click the clock → Reminders |
 | Free disk space | `sweep` (or `sweep --all`) |
+| Check a desktop widget | `SUPER + I` → Desktop widgets shows `[ON]`/`[OFF]`; `qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call widgets status`; errors: `qs log -p ~/.config/hypr/theme/quickshell/shell.qml` |
 | Find out why something is broken | `hyprctl configerrors`, `sudogui --check`, run `qs -p ~/.config/hypr/theme/quickshell/shell.qml` in a terminal |
 
 **Where things live**

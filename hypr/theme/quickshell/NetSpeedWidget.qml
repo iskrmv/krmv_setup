@@ -1,63 +1,70 @@
-// NetSpeedWidget.qml - desktop network speed monitor in the same look as the desktop clock
-// (big spaced title, Poppins numbers, soft shadow, no card). Sampling happens once in shell.qml.
-// It sits right under the clock and follows it when you move the clock.
+// NetSpeedWidget.qml - desktop network speed monitor, same look as the desktop clock (no card, soft shadow).
+// Two big rows (download, upload) with colored arrows, a small title and the totals underneath.
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Wayland
 
-PanelWindow {
+Item {
     id: widget
-    required property var theme
+    property var theme
     property string iface: ""
     property string downText: "0 B/s"
     property string upText: "0 B/s"
     property string receivedText: "0 B"
     property string sentText: "0 B"
-    property int clockX: -1                 // where the clock is (-1 = default place)
-    property int clockY: -1
     property color textColor: "#ffffff"
 
-    readonly property int curX: clockX >= 0 ? clockX : 80
-    readonly property int curY: clockY >= 0 ? clockY + 200 : Math.round(screen.height / 2) + 105
-
-    screen: Quickshell.screens[0]
-    anchors { left: true; top: true }
-    margins { left: curX; top: curY }
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.layer: WlrLayer.Bottom
-    implicitWidth: col.implicitWidth + 40
-    implicitHeight: col.implicitHeight + 20
-    color: "transparent"
-
-    FontLoader { id: anurati; source: "file://" + Quickshell.env("HOME") + "/.local/share/fonts/Anurati.otf" }
+    width: implicitWidth
+    height: implicitHeight
+    implicitWidth: Math.max(280, col.implicitWidth + 40)
+    implicitHeight: col.implicitHeight + 24
 
     ColumnLayout {
         id: col
         anchors.centerIn: parent
-        spacing: 5
+        spacing: 6
 
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "NETWORK"
-            color: widget.textColor
-            font.family: anurati.status === FontLoader.Ready ? anurati.name : "Poppins"
-            font.pixelSize: 34
-            font.letterSpacing: 9
+            text: "N E T W O R K"
+            color: widget.textColor; opacity: 0.75
+            font.family: "Poppins"; font.pixelSize: 13; font.bold: true
             style: Text.Raised; styleColor: "#99000000"
+        }
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 12
+            Text {
+                text: "\uf063"
+                color: widget.theme ? widget.theme.icon : "#0db9d7"
+                font.family: widget.theme ? widget.theme.font : "JetBrainsMono Nerd Font"; font.pixelSize: 22
+            }
+            Text {
+                text: widget.downText
+                color: widget.textColor
+                font.family: "Poppins"; font.pixelSize: 34; font.weight: Font.Light
+                style: Text.Raised; styleColor: "#99000000"
+            }
+        }
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 12
+            Text {
+                text: "\uf062"
+                color: widget.theme ? widget.theme.icon : "#0db9d7"
+                font.family: widget.theme ? widget.theme.font : "JetBrainsMono Nerd Font"; font.pixelSize: 22
+            }
+            Text {
+                text: widget.upText
+                color: widget.textColor
+                font.family: "Poppins"; font.pixelSize: 34; font.weight: Font.Light
+                style: Text.Raised; styleColor: "#99000000"
+            }
         }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: "\u2193  " + widget.downText + "     \u2191  " + widget.upText
-            color: widget.textColor
-            font.family: "Poppins"; font.pixelSize: 19; font.letterSpacing: 2
-            style: Text.Raised; styleColor: "#99000000"
-        }
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: (widget.iface !== "" ? widget.iface.toUpperCase() : "OFFLINE") + "  -  " + widget.receivedText + " IN  /  " + widget.sentText + " OUT"
-            color: widget.textColor; opacity: 0.8
-            font.family: "Poppins"; font.pixelSize: 13; font.letterSpacing: 2
+            text: (widget.iface !== "" ? widget.iface : "offline") + "   \u2193 " + widget.receivedText + "   \u2191 " + widget.sentText
+            color: widget.textColor; opacity: 0.7
+            font.family: "Poppins"; font.pixelSize: 13
             style: Text.Raised; styleColor: "#99000000"
         }
     }

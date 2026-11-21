@@ -1,8 +1,8 @@
 // WidgetMover.qml - the desktop widget editor. The screen dims; you can
-//   - drag the clock where you want it,
+//   - drag the clock, the network speed card and the media card (each one on its own) where you want them,
 //   - switch widgets on and off in the list at the top (Clock, Network speed, Media output).
 // The list comes from shell.qml, so a widget only needs an entry in widgetList to appear here.
-// Enter saves, R puts the clock back to its default place, Delete hides the clock, Esc cancels.
+// Enter saves, R puts every widget back to its default place, Esc cancels.
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -15,13 +15,24 @@ PanelWindow {
     property real startY: 0
     property real faceW: 600
     property real faceH: 200
+    property real netStartX: 80
+    property real netStartY: 300
+    property real mediaStartX: 80
+    property real mediaStartY: 500
     property var widgets: []                 // [{ id: "clock", name: "Clock", enabled: true }]
-    signal done(real x, real y)
+    signal done(var positions)             // { clock: [x, y], net: [x, y], media: [x, y] }
     signal resetRequested()
     signal cancelled()
     signal widgetToggled(string id, bool enabled)
 
-    readonly property bool clockOn: { for (const w of widgets) if (w.id === "clock") return w.enabled; return true }
+    function isOn(id, fallback) { for (const w of widgets) if (w.id === id) return w.enabled; return fallback }
+    readonly property bool clockOn: isOn("clock", true)
+    readonly property bool netOn: isOn("netspeed", false)
+    readonly property bool mediaOn: isOn("mediaout", false)
+    function collect() {
+        return { clock: [gClock.x, gClock.y], net: [gNet.x, gNet.y], media: [gMedia.x, gMedia.y],
+                 clockOn: clockOn, netOn: netOn, mediaOn: mediaOn }
+    }
 
     screen: Quickshell.screens[0]
     anchors { top: true; bottom: true; left: true; right: true }
@@ -31,10 +42,9 @@ PanelWindow {
     color: "transparent"
 
     Shortcut { sequence: "Escape"; onActivated: mover.cancelled() }
-    Shortcut { sequence: "Return"; onActivated: mover.done(ghost.x, ghost.y) }
-    Shortcut { sequence: "Enter"; onActivated: mover.done(ghost.x, ghost.y) }
+    Shortcut { sequence: "Return"; onActivated: mover.done(mover.collect()) }
+    Shortcut { sequence: "Enter"; onActivated: mover.done(mover.collect()) }
     Shortcut { sequence: "R"; onActivated: mover.resetRequested() }
-    Shortcut { sequence: "Delete"; onActivated: mover.widgetToggled("clock", false) }
 
     Rectangle {
         anchors.fill: parent
@@ -79,34 +89,42 @@ PanelWindow {
                     }
                 }
                 Text {
-                    text: "Toggles save immediately. Drag the clock, then press Enter to keep its place."
+                    text: "Toggles save immediately. Drag the widgets, then press Enter to keep their places."
                     color: mover.theme.dim
                     font.family: mover.theme.font; font.pixelSize: mover.theme.size - 3
                 }
             }
         }
 
-        // the clock (only while it is switched on)
-        Item {
-            id: ghost
+        // the widgets (only while they are switched on); every one is dragged on its own
+        DragGhost {
+            id: gMedia
+            theme: mover.theme
+            visible: mover.mediaOn
+            x: mover.mediaStartX; y: mover.mediaStartY
+            width: mediaPreview.implicitWidth; height: mediaPreview.implicitHeight
+            MediaOutputWidget { id: mediaPreview; theme: mover.theme }
+        }
+        DragGhost {
+            id: gNet
+            theme: mover.theme
+            visible: mover.netOn
+            x: mover.netStartX; y: mover.netStartY
+            width: netPreview.implicitWidth; height: netPreview.implicitHeight
+            NetSpeedWidget { id: netPreview; theme: mover.theme; iface: "wlan0"; downText: "1.2 MB/s"; upText: "340 KB/s"; receivedText: "2.1 GB"; sentText: "340 MB" }
+        }
+        DragGhost {
+            id: gClock
+            theme: mover.theme
             visible: mover.clockOn
             x: mover.startX; y: mover.startY
             width: mover.faceW; height: mover.faceH
-
             ClockFace { anchors.fill: parent }
-            Rectangle { anchors.fill: parent; color: "transparent"; border.width: 2; border.color: mover.theme.icon }
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.SizeAllCursor
-                drag.target: ghost
-                drag.minimumX: 0; drag.maximumX: Math.max(0, mover.width - ghost.width)
-                drag.minimumY: 0; drag.maximumY: Math.max(0, mover.height - ghost.height)
-            }
         }
 
         Text {
             anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 60 }
-            text: "Drag the clock    Enter: save    R: default place    Delete: hide the clock    Esc: cancel"
+            text: "Drag each widget    Enter: save    R: default places    Esc: cancel"
             color: mover.theme.fg
             font.family: mover.theme.font; font.pixelSize: mover.theme.size + 2
         }

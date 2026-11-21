@@ -8,8 +8,7 @@ sel=0; [ "$count" -gt 1 ] && sel=1
 # (the icon hint contains NUL bytes, so the list is piped straight into rofi, never stored in a variable)
 idx="$(printf '%s' "$data" | jq -r '.[] | "\(.class)  -  \(.title | .[0:70])   [workspace \(.workspace.name)]\u0000icon\u001f\(.class | ascii_downcase)"' \
   | rofi -dmenu -i -no-custom -format i -p "Windows" -selected-row "$sel" \
-  -kb-row-down "Down,Control+j,Alt+Tab,Tab" -kb-row-up "Up,Control+k,Alt+ISO_Left_Tab,Alt+Shift+Tab,ISO_Left_Tab" \
-  -kb-element-next "" -kb-element-prev "")" || exit 0
+  -kb-row-down "Down,Control+n,Alt+Tab" -kb-row-up "Up,Control+p,Alt+ISO_Left_Tab")" || exit 0
 [ -n "$idx" ] || exit 0
 addr="$(printf '%s' "$data" | jq -r ".[$idx].address")"
 out="$(hyprctl dispatch "hl.dsp.focus({ window = \"address:$addr\" })" 2>&1)"

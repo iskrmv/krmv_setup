@@ -220,16 +220,20 @@ Reset all shortcuts to the defaults$TAB@reset"
 
 # ------------------------------------------------------------------ desktop widgets
 SHELL_QML="$CFG/theme/quickshell/shell.qml"
-widget_ipc() { qs -p "$SHELL_QML" ipc call widgets "$1" 2>/dev/null; }
+widget_ipc() { qs -p "$SHELL_QML" ipc call widgets "$1" 2>&1; }
+widget_state() {      # widget_state <id>: ON or OFF, read from the saved file
+  if grep -q "\"$1\":true" "$STATE/widgets.json" 2>/dev/null; then echo ON; else echo OFF; fi
+}
 widgets_menu() {
   while :; do
-    pick="$(printf 'Move widgets / switch them on and off (editor)\nNet speed in the top bar (on / off)\nNet speed desktop card (on / off)\nMedia output desktop card (on / off)\n' \
-      | menu "Desktop widgets" "Net speed and Media output are OFF by default.")" || return
+    pick="$(printf 'Move the clock / widget editor\nNet speed in the top bar  [%s]\nNet speed on the desktop  [%s]\nMedia output on the desktop  [%s]\n' \
+      "$(widget_state netspeedbar)" "$(widget_state netspeed)" "$(widget_state mediaout)" \
+      | menu "Desktop widgets" "Pick one to switch it on or off. All three are OFF by default.")" || return
     case "$pick" in
-      "Move "*)  widget_ipc move; exit 0 ;;
-      *"top bar"*)  widget_ipc netspeedbar; note "Top bar net speed toggled" ;;
-      *"Net speed desktop"*) widget_ipc netspeed; note "Net speed card toggled" ;;
-      "Media "*) widget_ipc mediaout; note "Media output card toggled" ;;
+      "Move "*)  widget_ipc move >/dev/null; exit 0 ;;
+      *"top bar"*) out="$(widget_ipc netspeedbar)" || { note "The bar did not answer: $out"; continue; }; note "Net speed in the top bar: $(widget_state netspeedbar)" ;;
+      "Net speed on"*) out="$(widget_ipc netspeed)" || { note "The bar did not answer: $out"; continue; }; note "Net speed on the desktop: $(widget_state netspeed)" ;;
+      "Media output"*) out="$(widget_ipc mediaout)" || { note "The bar did not answer: $out"; continue; }; note "Media output on the desktop: $(widget_state mediaout)" ;;
       *) return ;;
     esac
   done

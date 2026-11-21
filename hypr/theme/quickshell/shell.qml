@@ -477,17 +477,42 @@ ShellRoot {
             }
         }
     }
+    // Places of the two cards (the clock keeps its own file, clock-position). -1 = default place under the clock.
+    property int netX: -1
+    property int netY: -1
+    property int mediaX: -1
+    property int mediaY: -1
+    Process {
+        command: ["sh", "-c", "cat \"$1\" 2>/dev/null", "_", root.stateDir + "/card-positions"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const p = text.trim().split(/\s+/).map(v => parseInt(v))
+                if (p.length === 4 && p.every(v => !isNaN(v))) { root.netX = p[0]; root.netY = p[1]; root.mediaX = p[2]; root.mediaY = p[3] }
+            }
+        }
+    }
     Process { id: posSave }
-    function saveClockPos(x, y) {
-        clockX = Math.round(x); clockY = Math.round(y)
-        posSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s %s' \"$2\" \"$3\" > \"$1/clock-position\"", "_", stateDir, String(clockX), String(clockY)]
+    function savePositions(pos) {
+        // only widgets that were switched on in the editor are moved; the others keep their place
+        if (pos.clockOn) { clockX = Math.round(pos.clock[0]); clockY = Math.round(pos.clock[1]) }
+        if (pos.netOn) { netX = Math.round(pos.net[0]); netY = Math.round(pos.net[1]) }
+        if (pos.mediaOn) { mediaX = Math.round(pos.media[0]); mediaY = Math.round(pos.media[1]) }
+        posSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s %s' \"$2\" \"$3\" > \"$1/clock-position\" && printf '%s %s %s %s' \"$4\" \"$5\" \"$6\" \"$7\" > \"$1/card-positions\"",
+                           "_", stateDir, String(clockX), String(clockY), String(netX), String(netY), String(mediaX), String(mediaY)]
         posSave.running = true
     }
-    function resetClockPos() {
-        clockX = -1; clockY = -1
-        posSave.command = ["sh", "-c", "rm -f \"$1/clock-position\"", "_", stateDir]
+    function resetPositions() {
+        clockX = -1; clockY = -1; netX = -1; netY = -1; mediaX = -1; mediaY = -1
+        posSave.command = ["sh", "-c", "rm -f \"$1/clock-position\" \"$1/card-positions\"", "_", stateDir]
         posSave.running = true
     }
+    // default places: the clock, then the net speed card below it, then the media card below that
+    readonly property int clockTop: clockWidget.curY
+    readonly property int netPosX: netX >= 0 ? netX : clockWidget.curX
+    readonly property int netPosY: netY >= 0 ? netY : clockTop + (widgetEnabled.clock !== false ? clockWidget.height + 10 : 0)
+    readonly property int mediaPosX: mediaX >= 0 ? mediaX : clockWidget.curX
+    readonly property int mediaPosY: mediaY >= 0 ? mediaY : netPosY + (widgetEnabled.netspeed === true ? netWindow.height + 10 : 0)
     // Which desktop widgets are switched on. Clock stays on by default; the two new cards are off.
     property var widgetEnabled: ({ clock: true, netspeed: false, netspeedbar: false, mediaout: false })
     readonly property var widgetList: [
@@ -500,6 +525,10 @@ ShellRoot {
         const w = Object.assign({}, widgetEnabled)
         w[id] = on
         widgetEnabled = w
+        // feedback: a small info box says what happened
+        let nm = id
+        for (const it of widgetList) if (it.id === id) nm = it.name
+        if (osdReady) osd.showMessage("widget", nm + (on ? " is ON" : " is OFF"), "")
         widgetsSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$1/widgets.json\"", "_", stateDir, JSON.stringify(w)]
         widgetsSave.running = true
     }
@@ -513,6 +542,7 @@ ShellRoot {
         function netspeed(): void { root.toggleWidget("netspeed") }          // desktop card
         function netspeedbar(): void { root.toggleWidget("netspeedbar") }    // top bar
         function mediaout(): void { root.toggleWidget("mediaout") }
+        function status(): string { return JSON.stringify(root.widgetEnabled) }   // qs -p <shell.qml> ipc call widgets status
     }
     Process {
         command: ["sh", "-c", "cat \"$1\" 2>/dev/null", "_", root.stateDir + "/widgets.json"]
@@ -525,6 +555,24 @@ ShellRoot {
         }
     }
     Process { id: widgetsSave }
+
+    // Password dialog (polkit agent) in the bar's theme. Loaded on its own so that an old Quickshell without the
+    // polkit module cannot break the bar: then the stock hyprpolkitagent is started instead.
+    Process {
+        id: polkitFallback
+        command: ["sh", "-c", "for b in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent; do [ -x \"$b\" ] && exec \"$b\"; done; systemctl --user start hyprpolkitagent.service"]
+    }
+    QtObject {
+        Component.onCompleted: {
+            const c = Qt.createComponent("PolkitDialog.qml")
+            const finish = () => {
+                if (c.status === Component.Ready) c.createObject(root, { theme: root.theme })
+                else if (c.status === Component.Error) { console.warn("PolkitDialog: " + c.errorString()); polkitFallback.running = true }
+            }
+            if (c.status === Component.Loading) c.statusChanged.connect(finish)
+            else finish()
+        }
+    }
     DesktopClock {
         id: clockWidget
         visible: !root.moveMode && root.widgetEnabled.clock !== false
@@ -532,23 +580,28 @@ ShellRoot {
         posY: root.clockY
         onMoveRequested: root.moveMode = true
     }
-    NetSpeedWidget {
+    DesktopWidgetWindow {
+        id: netWindow
         visible: !root.moveMode && root.widgetEnabled.netspeed === true
-        theme: root.theme
-        iface: root.netIface
-        downText: root.fmtRate(root.netDownRate) + "/s"
-        upText: root.fmtRate(root.netUpRate) + "/s"
-        clockX: root.clockX
-        clockY: root.clockY
-        receivedText: root.fmtBytes(root.netRxBytes)
-        sentText: root.fmtBytes(root.netTxBytes)
+        posX: root.netPosX
+        posY: root.netPosY
+        onMoveRequested: root.moveMode = true
+        NetSpeedWidget {
+            theme: root.theme
+            iface: root.netIface
+            downText: root.fmtRate(root.netDownRate) + "/s"
+            upText: root.fmtRate(root.netUpRate) + "/s"
+            receivedText: root.fmtBytes(root.netRxBytes)
+            sentText: root.fmtBytes(root.netTxBytes)
+        }
     }
-    MediaOutputWidget {
+    DesktopWidgetWindow {
+        id: mediaWindow
         visible: !root.moveMode && root.widgetEnabled.mediaout === true
-        theme: root.theme
-        clockX: root.clockX
-        clockY: root.clockY
-        stackOffset: root.widgetEnabled.netspeed === true ? 130 : 0     // sits under the net speed card when both are on
+        posX: root.mediaPosX
+        posY: root.mediaPosY
+        onMoveRequested: root.moveMode = true
+        MediaOutputWidget { theme: root.theme }
     }
     WidgetMover {
         visible: root.moveMode
@@ -558,8 +611,12 @@ ShellRoot {
         startY: clockWidget.curY
         faceW: clockWidget.width
         faceH: clockWidget.height
-        onDone: (x, y) => { root.saveClockPos(x, y); root.moveMode = false }
-        onResetRequested: { root.resetClockPos(); root.moveMode = false }
+        netStartX: root.netPosX
+        netStartY: root.netPosY
+        mediaStartX: root.mediaPosX
+        mediaStartY: root.mediaPosY
+        onDone: positions => { root.savePositions(positions); root.moveMode = false }
+        onResetRequested: { root.resetPositions(); root.moveMode = false }
         onCancelled: root.moveMode = false
         onWidgetToggled: (id, on) => root.setWidgetEnabled(id, on)
     }

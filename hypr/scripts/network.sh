@@ -1,7 +1,7 @@
 #!/bin/sh
 # NetworkManager helper (Wi-Fi autoconnect).
 #   network.sh autoconnect   enable autoconnect for every saved Wi-Fi profile (used by install.sh)
-#   network.sh menu          rofi menu: autoconnect, connect or list saved networks
+#   network.sh menu          rofi menu: manage saved networks, connect, autoconnect
 #   network.sh list          show saved connections and their autoconnect state
 #   network.sh connect       pick a visible Wi-Fi network and connect once with a password
 
@@ -44,34 +44,26 @@ list_connections() {
     | awk -F: '{ printf "%-14s %-6s %s\n", $1, $3, $2 }'
 }
 
-connect_wifi() {
-  nmcli radio wifi on >/dev/null 2>&1 || true
-  nmcli device wifi rescan >/dev/null 2>&1 || true
-  sleep 1
-  ssids="$(nmcli -t -f SSID device wifi list 2>/dev/null | sed '/^$/d' | sort -u)"
-  [ -n "$ssids" ] || { rofi_msg "No Wi-Fi networks were found nearby."; return 0; }
-  ssid="$(printf '%s\n' "$ssids" | rofi -dmenu -i -p '' -mesg 'Pick a Wi-Fi network')" || return 0
-  [ -n "$ssid" ] || return 0
-  pass="$(printf '' | rofi -dmenu -p "Password for $ssid" -password)" || return 0
-  if [ -n "$pass" ] && nmcli device wifi connect "$ssid" password "$pass" >/dev/null 2>&1; then
-    priv nmcli connection modify "$ssid" connection.autoconnect yes connection.autoconnect-priority 10 >/dev/null 2>&1 || true
-    note "Connected to $ssid"
-  elif nmcli device wifi connect "$ssid" >/dev/null 2>&1; then
-    priv nmcli connection modify "$ssid" connection.autoconnect yes connection.autoconnect-priority 10 >/dev/null 2>&1 || true
-    note "Connected to $ssid"
-  else
-    rofi_msg "Could not connect to $ssid. Check the password and try again."
-  fi
-}
+# nmcli: try as the logged-in user first (allowed for local sessions), then with the password dialog
+nm() { nmcli "$@" 2>/dev/null || priv nmcli "$@" 2>/dev/null; }
 
-menu() {
+# ---- saved Wi-Fi networks: connect / autoconnect / password / priority / forget
+saved_rows() {   # prints: uuid <TAB> autoconnect <TAB> priority <TAB> name   (Wi-Fi profiles only)
+  nmcli -t -f UUID,TYPE,AUTOCONNECT,AUTOCONNECT-PRIORITY,NAME connection show 2>/dev/null \
+    | while IFS=: read -r uuid type auto prio name; do
+        case "$type" in *wireless*|*wifi*) ;; *) continue ;; esac
+        name="$(printf '%s' "$name" | sed 's/\\:/:/g')"
+        printf '%s\t%s\t%s\t%s\n' "$uuid" "$auto" "$prio" "$name"
+      done
+}
+saved_menu() {
   while :; do
-    pick="$(printf 'Enable autoconnect for saved Wi-Fi\nConnect to a Wi-Fi network\nShow saved connections\n' \
+    pick="$(printf 'Saved networks (connect, forget, password, priority)\nConnect to a new Wi-Fi network\nEnable autoconnect for all saved Wi-Fi\n' \
       | rofi -dmenu -i -no-custom -p '' -mesg 'NetworkManager is the network manager on this system.')" || return 0
     case "$pick" in
-      "Enable "*) autoconnect ;;
+      "Saved "*) saved_menu ;;
       "Connect "*) connect_wifi ;;
-      "Show "*) rofi_msg "$(list_connections)" ; return 0 ;;
+      "Enable "*) autoconnect ;;
       *) return 0 ;;
     esac
   done

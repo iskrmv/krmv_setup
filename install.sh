@@ -64,7 +64,7 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     # clock app alarm sound; image viewer (swayimg: tiny, native Wayland, opens nearly every format incl. SVG)
     sound-theme-freedesktop swayimg libheif libjxl libavif libraw librsvg libwebp
     # dark mode
-    gnome-themes-extra adwaita-icon-theme dconf qt6ct qt5ct
+    gnome-themes-extra adwaita-icon-theme dconf qt6ct qt5ct hyprqt6engine
     # shell
     zsh zsh-autosuggestions zsh-syntax-highlighting zsh-theme-powerlevel10k
     # dns tool (openssl verifies the DoT certificate; curl checks the result)
@@ -243,6 +243,28 @@ link_cfg "$CFG/hypr/theme/qt6ct/qt6ct.conf"              "$CFG/qt6ct/qt6ct.conf"
 mkdir -p "$CFG/qt5ct/colors"
 cp "$CFG/hypr/theme/qt6ct/colors/krmv-tokyo.conf" "$CFG/qt5ct/colors/krmv-tokyo.conf"
 sed "s|$CFG/qt6ct/|$CFG/qt5ct/|" "$CFG/hypr/theme/qt6ct/qt6ct.conf" > "$CFG/qt5ct/qt5ct.conf"
+# The polkit password dialog (hyprpolkitagent) is a Qt Quick app: it takes its colors from hyprqt6engine, which can
+# read the same Tokyo Night palette. It is started by systemd, so the variables go into a service drop-in.
+POLKIT_THEME=qt6ct
+ls /usr/lib/qt6/plugins/platformthemes/libhyprqt6engine.so >/dev/null 2>&1 && POLKIT_THEME=hyprqt6engine
+cat > "$CFG/hypr/hyprqt6engine.conf" <<QTEOF
+theme {
+    color_scheme = $CFG/qt6ct/colors/krmv-tokyo.conf
+    style = Fusion
+    font = JetBrainsMono Nerd Font
+    font_size = 11
+}
+QTEOF
+mkdir -p "$CFG/systemd/user/hyprpolkitagent.service.d"
+cat > "$CFG/systemd/user/hyprpolkitagent.service.d/theme.conf" <<SDEOF
+[Service]
+Environment=QT_QPA_PLATFORMTHEME=$POLKIT_THEME
+Environment=QT_STYLE_OVERRIDE=Fusion
+SDEOF
+systemctl --user daemon-reload 2>/dev/null || true
+# the bar has its own themed polkit dialog now; the stock agent must not grab the polkit slot first
+systemctl --user disable --now hyprpolkitagent.service 2>/dev/null || true
+pkill -x hyprpolkitagent 2>/dev/null || true
 # session-wide theme variables, also for the polkit password dialog (it is started by systemd, not by Hyprland)
 mkdir -p "$CFG/environment.d"
 cat > "$CFG/environment.d/10-krmv-theme.conf" <<'ENVEOF'

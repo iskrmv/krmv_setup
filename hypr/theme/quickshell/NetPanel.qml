@@ -107,11 +107,25 @@ PanelWindow {
         stderr: StdioCollector { id: connErr }
         onExited: (code, st) => {
             panel.busy = false
-            if (code === 0) { panel.status = "Done"; panel.selected = "" }
+            if (code === 0) { panel.status = "Connected to " + ssid; panel.selected = "" }
             else {
-                const msg = (connErr.text || connOut.text).trim().split("\n")[0]
-                panel.status = "Error: " + msg
-                if (panel.lastPw !== "") { cleanProc.command = ["nmcli", "connection", "delete", "id", ssid]; cleanProc.running = true }
+                const raw = (connErr.text || connOut.text).trim().split("\n")[0]
+                // NetworkManager reports a wrong password in many ways; all of them mean "ask again"
+                const badPw = /secrets were required|\(7\)|\(4\)|authentication|4-way|handshake|password|psk/i.test(raw)
+                if (badPw) {
+                    // the profile that was created (or saved earlier) holds the wrong password: remove it,
+                    // then let you type the password again right here
+                    cleanProc.command = ["nmcli", "connection", "delete", "id", ssid]
+                    cleanProc.running = true
+                    panel.status = "Error: wrong password for " + ssid + ". Type it again and press Enter."
+                    panel.selected = ssid
+                    pw.text = ""
+                    pw.forceActiveFocus()
+                } else if (/no network with ssid|not found/i.test(raw)) {
+                    panel.status = "Error: " + ssid + " is not in range right now."
+                } else {
+                    panel.status = "Error: could not connect to " + ssid + (raw !== "" ? " (" + raw + ")" : "")
+                }
             }
             panel.refresh()
         }

@@ -45,7 +45,7 @@ window {
 mainbox {
     padding: 12px;
     spacing: 10px;
-    children: [ inputbar, listview ];
+    children: [ inputbar, message, listview ];
 }
 
 inputbar {
@@ -86,26 +86,28 @@ element normal.urgent, element selected.urgent { text-color: @urgent; }
 element-icon { size: 24px; vertical-align: 0.5; }
 element-text { vertical-align: 0.5; text-color: inherit; }
 
-/* Error / message dialogs (for example a mistyped command) must be easy to read. */
+/* Error / message dialogs (for example a mistyped command): big, bright, high contrast. */
 error-message {
     background-color: @bg-alt;
     border: 2px;
     border-color: @urgent;
-    padding: 16px;
+    padding: 18px;
+    text-color: @bright;
 }
-error-message textbox {
+error-message textbox, textbox {
     background-color: transparent;
     text-color: @bright;
     font: "JetBrainsMono Nerd Font Bold 13";
-    markup: false;
+    vertical-align: 0.5;
 }
 message {
     background-color: @bg-alt;
-    border: 0 0 1px 0;
+    border: 1px;
     border-color: @muted;
     padding: 10px 14px;
 }
 message textbox {
     background-color: transparent;
     text-color: @bright;
+    font: "JetBrainsMono Nerd Font 11";
 }
