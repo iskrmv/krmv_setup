@@ -1,5 +1,5 @@
-// ClockEngine.qml - the brain of the clock app: timer, stopwatch, alarms, and the ringing.
-// It keeps running when the panel is closed. The timer and the alarms are remembered in ~/.local/state/krmv-setup.
+// ClockEngine.qml - the brain of the clock app: timer, stopwatch, alarms, calendar reminders, and the ringing.
+// It keeps running when the panel is closed. Timer, alarms and reminders are remembered in ~/.local/state/krmv-setup.
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -29,6 +29,50 @@ Scope {
     property var alarms: []
     property var lastFired: ({})
     property real snoozeAt: 0
+
+    // ---- calendar reminders: [{ id, date: "2026-11-20", time: "14:30", text, done }] ----
+    // At the chosen minute a notification pops up (the bar is the notification daemon). A reminder that came due
+    // while the bar was not running fires at the next start. Fired reminders are removed after 14 days.
+    property var reminders: []
+    function noteKey(d) {
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")
+    }
+    function remindersOn(key) {
+        return reminders.filter(r => r.date === key).sort((x, y) => x.time < y.time ? -1 : 1)
+    }
+    function hasReminder(key) { return reminders.some(r => r.date === key) }
+    function validTime(t) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(t) }
+    function addReminder(key, time, text) {
+        const v = String(text || "").trim()
+        if (v === "" || !validTime(time)) return false
+        reminders = reminders.concat([{ id: Date.now() + Math.floor(Math.random() * 1000), date: key, time: time, text: v, done: false }])
+        saveReminders()
+        checkReminders()
+        return true
+    }
+    function removeReminder(id) {
+        reminders = reminders.filter(r => r.id !== id)
+        saveReminders()
+    }
+    function checkReminders() {
+        const now = new Date()
+        const nowStr = noteKey(now) + " " + String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0")
+        let changed = false
+        const keep = []
+        for (const r of reminders) {
+            if (!r.done && (r.date + " " + r.time) <= nowStr) {
+                remindProc.command = ["notify-send", "-u", "critical", "-i", "appointment-soon", "Reminder  " + r.time, r.text]
+                remindProc.running = true
+                r.done = true; changed = true
+            }
+            // forget fired reminders after 14 days
+            if (r.done && (now.getTime() - new Date(r.date + "T" + r.time + ":00").getTime()) > 14 * 86400000) { changed = true; continue }
+            keep.push(r)
+        }
+        if (changed) { reminders = keep; saveReminders() }
+    }
+    Process { id: remindProc }
+    Timer { interval: 20000; running: eng.reminders.length > 0; repeat: true; onTriggered: eng.checkReminders() }
 
     // ---- ringing ----
     property bool ringing: false
@@ -125,6 +169,11 @@ Scope {
     // ---- remembered between restarts ----
     Process { id: alarmsSave }
     Process { id: timerSave }
+    Process { id: remindersSave }
+    function saveReminders() {
+        remindersSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$1/reminders.json\"", "_", stateDir, JSON.stringify(reminders)]
+        remindersSave.running = true
+    }
     function saveAlarms() {
         alarmsSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$1/alarms.json\"", "_", stateDir, JSON.stringify(alarms)]
         alarmsSave.running = true
@@ -149,6 +198,18 @@ Scope {
                     eng.timerTotal = t.total || 0
                     if (t.state === "paused") { eng.timerPausedLeft = t.pausedLeft; eng.timerState = "paused" }
                     else if (t.state === "running" && t.endsAt > Date.now()) { eng.timerEndsAt = t.endsAt; eng.timerState = "running" }
+                } catch (e) {}
+            }
+        }
+    }
+    Process {
+        command: ["sh", "-c", "cat \"$1\" 2>/dev/null", "_", eng.stateDir + "/reminders.json"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const n = JSON.parse(text)
+                    if (Array.isArray(n)) { eng.reminders = n; eng.checkReminders() }
                 } catch (e) {}
             }
         }

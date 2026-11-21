@@ -99,9 +99,48 @@ default_apps_menu() {
       list="$list$(printf '%-16s %s' "$(role_label $r)" "$(current_app $r)")$TAB$r
 "
     done
-    line="$(printf '%s' "$list" | rofi -dmenu -i -no-custom -display-columns 1 -p "Default apps" -mesg "Choose one to change it. Esc goes back.")" || return
+    list="$list
+More (choose by file format)$TAB@more
+"
+    line="$(printf '%s' "$list" | rofi -dmenu -i -no-custom -display-columns 1 -p "Default apps" -mesg "Simple: pick a role. More: pick an exact file type. Esc goes back.")" || return
     role="$(printf '%s' "$line" | cut -f2)"
-    [ -n "$role" ] && choose_app "$role"
+    case "$role" in
+      @more) mime_menu ;;
+      '') ;;
+      *) choose_app "$role" ;;
+    esac
+  done
+}
+
+all_mimes() {         # every MIME type advertised by an installed, visible app
+  for d in $APP_DIRS; do
+    [ -d "$d" ] || continue
+    for f in "$d"/*.desktop; do
+      [ -f "$f" ] || continue
+      grep -q '^NoDisplay=true' "$f" && continue
+      awk -F= '/^MimeType=/ { n = split($2, a, ";"); for (i = 1; i <= n; i++) if (a[i] != "") print a[i] }' "$f"
+    done
+  done | sort -u
+}
+
+mime_menu() {         # precise mode: choose the default app for one exact file type
+  while :; do
+    list=""
+    for m in $(all_mimes); do
+      cur="$(xdg-mime query default "$m" 2>/dev/null)"
+      list="$list$(printf '%-42s %s' "$m" "${cur:-not set}")$TAB$m
+"
+    done
+    [ -n "$list" ] || { note "No file types were found in the installed apps."; return; }
+    line="$(printf '%s' "$list" | rofi -dmenu -i -no-custom -display-columns 1 -p "Default by file type" -mesg "Pick an exact MIME type, then pick its app. Esc goes back.")" || return
+    mime="$(printf '%s' "$line" | cut -f2)"
+    [ -n "$mime" ] || return
+    cands="$(candidates "$mime")"
+    [ -n "$cands" ] || { note "No installed app declares support for $mime."; continue; }
+    pick="$(printf '%s\n' "$cands" | cut -f1 | menu "$mime" "Now: $(xdg-mime query default "$mime" 2>/dev/null)")" || continue
+    [ -n "$pick" ] || continue
+    file="$(printf '%s\n' "$cands" | awk -F'\t' -v n="$pick" '$1 == n { print $2; exit }')"
+    xdg-mime default "$file" "$mime" && note "$mime: $pick"
   done
 }
 
@@ -179,14 +218,121 @@ Reset all shortcuts to the defaults$TAB@reset"
   done
 }
 
+# ------------------------------------------------------------------ desktop widgets
+SHELL_QML="$CFG/theme/quickshell/shell.qml"
+widget_ipc() { qs -p "$SHELL_QML" ipc call widgets "$1" 2>/dev/null; }
+widgets_menu() {
+  while :; do
+    pick="$(printf 'Move widgets / switch them on and off (editor)\nNet speed in the top bar (on / off)\nNet speed desktop card (on / off)\nMedia output desktop card (on / off)\n' \
+      | menu "Desktop widgets" "Net speed and Media output are OFF by default.")" || return
+    case "$pick" in
+      "Move "*)  widget_ipc move; exit 0 ;;
+      *"top bar"*)  widget_ipc netspeedbar; note "Top bar net speed toggled" ;;
+      *"Net speed desktop"*) widget_ipc netspeed; note "Net speed card toggled" ;;
+      "Media "*) widget_ipc mediaout; note "Media output card toggled" ;;
+      *) return ;;
+    esac
+  done
+}
+
+# ------------------------------------------------------------------ audio
+audio_menu() {
+  while :; do
+    pick="$(printf 'Laptop speakers too quiet? Raise all levels to 100%%\nSelect an output (speakers / headphones)\nCollect audio diagnostics\n' \
+      | menu "Audio" "Speakers quiet but headphones fine = a hidden ALSA level is low.")" || return
+    case "$pick" in
+      "Laptop "*) sh "$CFG/scripts/audio.sh" boost ;;
+      "Select "*) sh "$CFG/scripts/audio.sh" select ;;
+      "Collect "*) sh "$CFG/scripts/audio.sh" diagnostics ;;
+      *) return ;;
+    esac
+  done
+}
+
+# ------------------------------------------------------------------ network
+network_menu() {
+  sh "$CFG/scripts/network.sh" menu
+}
+
+# ------------------------------------------------------------------ geolocation
+# GeoClue is the location service of Linux. Which apps may ask it for your position is written in
+# /etc/geoclue/geoclue.conf, one [app-id] section per app with allowed=true/false. Changing it needs root.
+GEOCLUE_CONF="${GEOCLUE_CONF:-/etc/geoclue/geoclue.conf}"
+geo_priv() { if [ -t 0 ]; then sudo "$@"; else pkexec "$@"; fi; }
+geo_rows() {          # prints "app<TAB>true|false" for every app section of geoclue.conf
+  [ -r "$GEOCLUE_CONF" ] || return 0
+  awk '
+    /^\[/ { sec = $0; gsub(/[\[\]]/, "", sec); next }
+    /^[ \t]*allowed[ \t]*=/ {
+      v = $0; sub(/^[^=]*=[ \t]*/, "", v); sub(/[ \t\r]+$/, "", v)
+      if (sec !~ /^(agent|wifi|3g|cdma|modem-gps|network-nmea|static-source|compass)$/) print sec "\t" v
+    }' "$GEOCLUE_CONF"
+}
+geo_set() {           # geo_set <app-id> true|false   (adds the app if it is not in the file yet)
+  app="$1"; val="$2"
+  [ -n "$app" ] || return 0
+  case "$app" in *[!A-Za-z0-9._-]*) note "Invalid app id: $app"; return 1 ;; esac
+  tmp="$(mktemp)"
+  if [ -r "$GEOCLUE_CONF" ] && grep -q "^\[$app\]" "$GEOCLUE_CONF"; then
+    awk -v app="$app" -v val="$val" '
+      /^\[/ { insec = ($0 == "[" app "]") }
+      insec && /^[ \t]*allowed[ \t]*=/ { print "allowed=" val; next }
+      { print }' "$GEOCLUE_CONF" > "$tmp"
+  else
+    { [ -r "$GEOCLUE_CONF" ] && cat "$GEOCLUE_CONF"; printf '\n[%s]\nallowed=%s\nsystem=false\nusers=\n' "$app" "$val"; } > "$tmp"
+  fi
+  if geo_priv install -Dm644 "$tmp" "$GEOCLUE_CONF"; then
+    geo_priv systemctl restart geoclue 2>/dev/null || true
+    if [ "$val" = true ]; then note "Location for $app: ALLOWED"; else note "Location for $app: DENIED"; fi
+  else
+    note "Could not write $GEOCLUE_CONF (password dialog cancelled?)"
+  fi
+  rm -f "$tmp"
+}
+location_menu() {
+  if [ ! -r "$GEOCLUE_CONF" ]; then
+    note "GeoClue is not installed. Run the setup installer again (package: geoclue)."
+    return 0
+  fi
+  while :; do
+    list="Add an app$TAB@add
+"
+    rows="$(geo_rows)"
+    if [ -n "$rows" ]; then
+      while IFS="$TAB" read -r app val; do
+        [ -n "$app" ] || continue
+        if [ "$val" = true ]; then label="ALLOWED"; else label="DENIED "; fi
+        list="$list$(printf '%-7s %s' "$label" "$app")$TAB$app$TAB$val
+"
+      done <<ROWS
+$rows
+ROWS
+    fi
+    line="$(printf '%s' "$list" | rofi -dmenu -i -no-custom -display-columns 1 -p "Location" \
+      -mesg "Pick an app to switch it between ALLOWED and DENIED. Esc goes back.")" || return
+    app="$(printf '%s' "$line" | cut -f2)"
+    val="$(printf '%s' "$line" | cut -f3)"
+    case "$app" in
+      @add)
+        typed="$(printf '' | rofi -dmenu -p "App id" -mesg "Desktop file name without .desktop, e.g. firefox or org.gnome.Maps")" || continue
+        geo_set "$typed" true ;;
+      '') return ;;
+      *)  if [ "$val" = true ]; then geo_set "$app" false; else geo_set "$app" true; fi ;;
+    esac
+  done
+}
+
 # ------------------------------------------------------------------ main menu
 main() {
   while :; do
-    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move or hide the clock)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
+    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nNetwork (Wi-Fi autoconnect)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
     case "$pick" in
       "Default apps") default_apps_menu ;;
       "Keyboard shortcuts") shortcuts_menu ;;
-      "Desktop widgets"*) qs -p "$CFG/theme/quickshell/shell.qml" ipc call widgets move; exit 0 ;;
+      "Desktop widgets"*) widgets_menu ;;
+      "Network"*) network_menu ;;
+      "Location"*) location_menu ;;
+      "Audio"*) audio_menu ;;
       "Night mode"*) sh "$CFG/scripts/nightmode.sh" toggle ;;
     esac
   done

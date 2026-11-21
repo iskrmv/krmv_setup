@@ -1,5 +1,5 @@
 // ~/.config/hypr/theme/quickshell/shell.qml
-// Other files: Chip, Slider, RamIcon, Clock, Toggle, TrayMenu, NetPanel, BtPanel, PowerMenu, Osd, MediaWidget, MarqueeText, ClockFace, DesktopClock, WidgetMover, ClockEngine, ClockPanel, AlarmRing, PanelButton, Notifications, NotificationCard (.qml) - must live in this same folder
+// Other files: Chip, Slider, RamIcon, Clock, Toggle, TrayMenu, NetPanel, BtPanel, PowerMenu, Osd, MediaWidget, MarqueeText, ClockFace, DesktopClock, WidgetMover, ClockEngine, ClockPanel, AlarmRing, PanelButton, Notifications, NotificationCard, NetSpeedWidget, MediaOutputWidget (.qml) - must live in this same folder
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -21,7 +21,7 @@ ShellRoot {
         dim: "#787c99",         // secondary text
         icon: "#0db9d7",        // ONE color for ALL icons (off state: muted, problem: red)
         font: "JetBrainsMono Nerd Font", size: 14,
-        naturalScroll: false,   // Hyprland already handles scroll direction; true = invert the bar's scroll again
+        naturalScroll: false,   // keep false: Hyprland already handles scroll direction (the sliders detect a trackpad themselves)
         trayHide: ["nm-applet", "networkmanager", "nm-tray", "blueman"]  // tray apps to hide (matched against id or title)
     })
 
@@ -101,6 +101,9 @@ ShellRoot {
     function toggleMute() { if (hasAudio) sink.audio.muted = !sink.audio.muted }
     // 5% per mouse-wheel notch (120 units); a trackpad sends many small amounts, so it scrolls smoothly
     function scrollDelta(dy) { return (theme.naturalScroll ? -dy : dy) / 120 * 0.05 }
+    // Controls keep "two fingers UP = more": touchpad natural scrolling reverses the angleDelta sign,
+    // so invert it only when pixelDelta is present (trackpad). A plain mouse wheel keeps its normal direction.
+    function controlScrollDelta(dy, pixelDy) { return (pixelDy !== 0 ? -dy : dy) / 120 * 0.05 }
 
     // ---- Per-app volume mixer (opened with the small arrow in the volume popup) ----
     // Every app that has an audio stream is listed (playing or paused), one row per app. Apps that are running and can
@@ -371,29 +374,96 @@ ShellRoot {
     // ---- Keyboard layout indicator (EN / RU), updated by Hyprland events ----
     property string kbLayout: "EN"
     property string kbName: ""
-    function setLayout(name) {
+    readonly property var kbCodes: ({ English: "EN", Russian: "RU", German: "DE", French: "FR", Spanish: "ES", Uzbek: "UZ",
+        Turkish: "TR", Arabic: "AR", Italian: "IT", Ukrainian: "UA", Chinese: "ZH", Japanese: "JA", Korean: "KO",
+        Portuguese: "PT", Polish: "PL", Kazakh: "KK", Kyrgyz: "KY", Tajik: "TG", Persian: "FA", Hindi: "HI" })
+    function layoutCode(name) {
+        const w = name.split(/[ (]/)[0]
+        return kbCodes[w] !== undefined ? kbCodes[w] : name.substring(0, 2).toUpperCase()
+    }
+    function setLayout(name, announce) {
+        const code = layoutCode(name)
+        const changed = code !== kbLayout
         kbName = name
-        kbLayout = name.indexOf("Russian") >= 0 ? "RU" : (name.indexOf("English") >= 0 ? "EN" : name.substring(0, 2).toUpperCase())
+        kbLayout = code
+        // info box when the layout is switched (not while the bar starts)
+        if (announce && osdReady && changed) osd.showMessage("keyboard", name, "Keyboard layout: " + code)
     }
     Connections {
         target: Hyprland
         function onRawEvent(event) {
-            if (event.name === "activelayout") setLayout(event.data.split(",").slice(1).join(","))
+            if (event.name === "activelayout") setLayout(event.data.split(",").slice(1).join(","), true)
         }
     }
     Process {
         command: ["sh", "-c", "hyprctl devices -j | jq -r '.keyboards[] | select(.main == true) | .active_keymap' | head -n1"]
         running: true
-        stdout: StdioCollector { onStreamFinished: if (text.trim() !== "") root.setLayout(text.trim()) }
+        stdout: StdioCollector { onStreamFinished: if (text.trim() !== "") root.setLayout(text.trim(), false) }
     }
 
-    // ---- Clock app: timer, alarm, stopwatch (the engine keeps running when the panel is closed) ----
+    // ---- Clock app: timer, alarm, stopwatch, notes (the engine keeps running when the panel is closed) ----
     ClockEngine { id: clockEngine; panelOpen: root.openPanel === "clock" }
     AlarmRing { theme: root.theme; engine: clockEngine }
 
     // ---- Desktop widgets ----
     // The clock's place is remembered in ~/.local/state/krmv-setup/clock-position
     readonly property string stateDir: Quickshell.env("HOME") + "/.local/state/krmv-setup"
+
+    // ---- Network speed: one small /sys read every 2 s, shared by the bar chip and the desktop card ----
+    property string netIface: ""
+    property real netRxBytes: 0
+    property real netTxBytes: 0
+    property real netDownRate: 0              // bytes / second
+    property real netUpRate: 0
+    property real netPrevRx: 0
+    property real netPrevTx: 0
+    property real netPrevAt: 0
+
+    function fmtRate(v) {
+        v = Math.max(0, v)
+        if (v >= 1048576) return (v / 1048576).toFixed(1) + "M"
+        if (v >= 1024) return (v / 1024).toFixed(v >= 10240 ? 0 : 1) + "K"
+        return Math.round(v) + "B"
+    }
+    function fmtBytes(v) {
+        v = Math.max(0, v)
+        if (v >= 1073741824) return (v / 1073741824).toFixed(2) + " GB"
+        if (v >= 1048576) return (v / 1048576).toFixed(1) + " MB"
+        if (v >= 1024) return (v / 1024).toFixed(1) + " KB"
+        return Math.round(v) + " B"
+    }
+    readonly property string netSpeedText: "\u2193 " + fmtRate(netDownRate) + " \u2191 " + fmtRate(netUpRate)
+    readonly property string netSpeedTip: "Interface: " + (netIface !== "" ? netIface : "none")
+                                          + "\nReceived: " + fmtBytes(netRxBytes)
+                                          + "\nSent: " + fmtBytes(netTxBytes)
+                                          + "\nSpeed: \u2193 " + fmtRate(netDownRate) + " \u2191 " + fmtRate(netUpRate)
+
+    Process {
+        id: netSpeedProc
+        command: ["sh", "-c", "iface=$(ip route show default 2>/dev/null | awk '/default/ {print $5; exit}'); [ -n \"$iface\" ] || iface=$(ls /sys/class/net 2>/dev/null | grep -E '^(en|eth|wl)' | head -1); [ -n \"$iface\" ] || exit 0; echo \"$iface\"; cat /sys/class/net/$iface/statistics/rx_bytes 2>/dev/null || echo 0; cat /sys/class/net/$iface/statistics/tx_bytes 2>/dev/null || echo 0"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const p = text.trim().split("\n")
+                if (p.length < 3 || p[0] === "") return
+                if (p[0] !== root.netIface) root.netPrevAt = 0   // interface changed: skip the first rate sample
+                root.netIface = p[0]
+                const rx = parseFloat(p[1]) || 0, tx = parseFloat(p[2]) || 0
+                const now = Date.now()
+                if (root.netPrevAt > 0) {
+                    const dt = Math.max(0.1, (now - root.netPrevAt) / 1000)
+                    root.netDownRate = Math.max(0, (rx - root.netPrevRx) / dt)
+                    root.netUpRate = Math.max(0, (tx - root.netPrevTx) / dt)
+                }
+                root.netPrevRx = rx; root.netPrevTx = tx; root.netPrevAt = now
+                root.netRxBytes = rx; root.netTxBytes = tx
+            }
+        }
+    }
+    Timer {
+        interval: 2000; running: root.widgetEnabled.netspeed === true || root.widgetEnabled.netspeedbar === true; repeat: true; triggeredOnStart: true
+        onTriggered: netSpeedProc.running = true
+    }
+
     property bool moveMode: false
     property int clockX: -1
     property int clockY: -1
@@ -418,21 +488,14 @@ ShellRoot {
         posSave.command = ["sh", "-c", "rm -f \"$1/clock-position\"", "_", stateDir]
         posSave.running = true
     }
-    // SUPER + SHIFT + W calls:  qs -p <shell.qml> ipc call widgets move
-    IpcHandler {
-        target: "widgets"
-        function move(): void { root.moveMode = true }
-        function clock(): void { root.togglePanel("clock") }       // SUPER + C
-    }
-    // Which desktop widgets are switched on (the edit mode lists them): { clock: true }
-    property var widgetEnabled: ({ clock: true })
-    readonly property var widgetList: [ { id: "clock", name: "Clock", enabled: widgetEnabled.clock !== false } ]
-    Process {
-        command: ["sh", "-c", "cat \"$1\" 2>/dev/null", "_", root.stateDir + "/widgets.json"]
-        running: true
-        stdout: StdioCollector { onStreamFinished: { try { root.widgetEnabled = JSON.parse(text) } catch (e) {} } }
-    }
-    Process { id: widgetsSave }
+    // Which desktop widgets are switched on. Clock stays on by default; the two new cards are off.
+    property var widgetEnabled: ({ clock: true, netspeed: false, netspeedbar: false, mediaout: false })
+    readonly property var widgetList: [
+        { id: "clock", name: "Clock", enabled: widgetEnabled.clock !== false },
+        { id: "netspeedbar", name: "Network speed (top bar)", enabled: widgetEnabled.netspeedbar === true },
+        { id: "netspeed", name: "Network speed (desktop)", enabled: widgetEnabled.netspeed === true },
+        { id: "mediaout", name: "Media output", enabled: widgetEnabled.mediaout === true }
+    ]
     function setWidgetEnabled(id, on) {
         const w = Object.assign({}, widgetEnabled)
         w[id] = on
@@ -440,12 +503,46 @@ ShellRoot {
         widgetsSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$1/widgets.json\"", "_", stateDir, JSON.stringify(w)]
         widgetsSave.running = true
     }
+    function toggleWidget(id) { setWidgetEnabled(id, widgetEnabled[id] !== true) }
+    // SUPER + SHIFT + W calls:  qs -p <shell.qml> ipc call widgets move
+    // Toggles: qs -p <shell.qml> ipc call widgets netspeed | netspeedbar | mediaout
+    IpcHandler {
+        target: "widgets"
+        function move(): void { root.moveMode = true }
+        function clock(): void { root.togglePanel("clock") }               // SUPER + C
+        function netspeed(): void { root.toggleWidget("netspeed") }          // desktop card
+        function netspeedbar(): void { root.toggleWidget("netspeedbar") }    // top bar
+        function mediaout(): void { root.toggleWidget("mediaout") }
+    }
+    Process {
+        command: ["sh", "-c", "cat \"$1\" 2>/dev/null", "_", root.stateDir + "/widgets.json"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.widgetEnabled = Object.assign({ clock: true, netspeed: false, netspeedbar: false, mediaout: false }, JSON.parse(text)) }
+                catch (e) {}
+            }
+        }
+    }
+    Process { id: widgetsSave }
     DesktopClock {
         id: clockWidget
         visible: !root.moveMode && root.widgetEnabled.clock !== false
         posX: root.clockX
         posY: root.clockY
         onMoveRequested: root.moveMode = true
+    }
+    NetSpeedWidget {
+        visible: !root.moveMode && root.widgetEnabled.netspeed === true
+        theme: root.theme
+        iface: root.netIface
+        speedText: root.netSpeedText
+        receivedText: root.fmtBytes(root.netRxBytes)
+        sentText: root.fmtBytes(root.netTxBytes)
+    }
+    MediaOutputWidget {
+        visible: !root.moveMode && root.widgetEnabled.mediaout === true
+        theme: root.theme
     }
     WidgetMover {
         visible: root.moveMode
@@ -639,13 +736,22 @@ ShellRoot {
                 }
 
                 // Center
-                Clock { id: barClock; anchors.centerIn: parent; theme: root.theme; suppressPopup: root.openPanel === "clock"; onClicked: root.togglePanel("clock") }
-
-                // Now playing: between the left group (launcher, workspaces) and the clock
-                MediaWidget {
-                    anchors { right: barClock.left; rightMargin: 28; verticalCenter: parent.verticalCenter }
+                Clock {
+                    id: barClock
+                    anchors.centerIn: parent
                     theme: root.theme
-                    maxWidth: Math.max(120, barClock.x - (leftRow.x + leftRow.width) - 28 - 24)
+                    engine: clockEngine
+                    suppressPopup: root.openPanel === "clock"
+                    onClicked: root.togglePanel("clock")
+                }
+
+                // Now playing: centered in the free space between the left group and the clock,
+                // with equal breathing room on both sides instead of being glued to the clock.
+                MediaWidget {
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: Math.round((leftRow.x + leftRow.width + barClock.x - width) / 2)
+                    theme: root.theme
+                    maxWidth: Math.max(120, barClock.x - (leftRow.x + leftRow.width) - 48)
                     activePopup: root.activePopup
                     onPopupRequested: root.activePopup = "media"
                 }
@@ -663,9 +769,14 @@ ShellRoot {
                         theme: root.theme
                         icon: "\uf11c"
                         label: root.kbLayout
-                        tip: "Keyboard layout: " + root.kbName + "\nALT + SHIFT switches it"
+                        tip: "Current layout: " + root.kbLayout + (root.kbName !== "" ? " (" + root.kbName + ")" : "")
+                             + "
+Click or ALT + SHIFT: next layout"
+                             + "
+Right-click: add / remove layouts"
                         popupId: "kb"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "kb"
                         onClicked: Quickshell.execDetached(["hyprctl", "switchxkblayout", "all", "next"])
+                        onRightClicked: Quickshell.execDetached(["sh", Quickshell.env("HOME") + "/.config/hypr/scripts/layout.sh"])
                     }
 
                     Chip {
@@ -680,7 +791,7 @@ ShellRoot {
                         extra: nightMixer
                         onSliderMoved: v => root.setBrightness(v)
                         onEngagedChanged: root.brightEngaged = engaged
-                        onScrolled: dy => root.setBrightness(root.brightPct + root.scrollDelta(dy))
+                        onScrolled: (dy, py) => root.setBrightness(root.brightPct + root.controlScrollDelta(dy, py))
                     }
 
                     Chip {
@@ -696,7 +807,16 @@ ShellRoot {
                         onSliderMoved: v => root.setVolume(v)
                         onClicked: root.toggleMute()
                         onEngagedChanged: root.volEngaged = engaged
-                        onScrolled: dy => root.setVolume(root.volume + root.scrollDelta(dy))
+                        onScrolled: (dy, py) => root.setVolume(root.volume + root.controlScrollDelta(dy, py))
+                    }
+
+                    Chip {
+                        theme: root.theme
+                        popupId: "netspeed"; activePopup: root.activePopup; onPopupRequested: root.activePopup = "netspeed"
+                        visible: root.widgetEnabled.netspeedbar === true
+                        icon: "\uf3fd"
+                        label: root.netSpeedText
+                        tip: root.netSpeedTip
                     }
 
                     Chip {

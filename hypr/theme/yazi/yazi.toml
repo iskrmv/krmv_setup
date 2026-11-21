@@ -1,0 +1,16 @@
+# ~/.config/yazi/yazi.toml - installed by krmv-setup.
+# Everything useful is open by default: hidden files, the preview pane and image previews.
+[mgr]
+ratio = [1, 4, 3]          # parent | current | preview - the preview is always visible
+show_hidden = false
+show_symlink = true
+sort_by = "natural"
+sort_dir_first = true
+linemode = "size"
+scrolloff = 5
+
+[preview]
+wrap = "yes"
+image_delay = 0
+image_filter = "lanczos3"
+image_quality = 75

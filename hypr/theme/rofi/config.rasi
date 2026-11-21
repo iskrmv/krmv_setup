@@ -3,10 +3,21 @@ configuration {
     modi: "drun";
     show-icons: true;
     font: "JetBrainsMono Nerd Font 12";
-    display-drun: "Apps";
-    display-run: "Run";
-    display-window: "Windows";
     drun-display-format: "{name}";
+    /* Typing "len": names that START with "len" come first, looser guesses (Blender ...) below. */
+    matching: "fuzzy";
+    sort: true;
+    sorting-method: "fzf";
+    scroll-method: 1;                 /* continuous scrolling instead of jumping a whole page */
+    /* Not in the list? Type the command and press Enter (or Ctrl+Enter to force it).
+       run-cmd opens terminal apps (btop, impala, nvim ...) inside kitty and everything else directly. */
+    run-command: "run-cmd {cmd}";
+    run-shell-command: "run-cmd {cmd}";
+    terminal: "kitty";
+    /* rofi-wayland reports the wheel direction the other way round from native apps: swap it.
+       If scrolling feels reversed for you, delete these two lines. */
+    ml-row-up: "ScrollDown";
+    ml-row-down: "ScrollUp";
 }
 
 * {
@@ -78,3 +89,27 @@ element normal.urgent, element selected.urgent { text-color: @urgent; }
 
 element-icon { size: 24px; vertical-align: 0.5; }
 element-text { vertical-align: 0.5; text-color: inherit; }
+
+/* Error / message dialogs (for example a mistyped command) must be easy to read. */
+error-message {
+    background-color: @bg-alt;
+    border: 2px;
+    border-color: @urgent;
+    padding: 16px;
+}
+error-message textbox {
+    background-color: transparent;
+    text-color: @bright;
+    font: "JetBrainsMono Nerd Font Bold 13";
+    markup: false;
+}
+message {
+    background-color: @bg-alt;
+    border: 0 0 1px 0;
+    border-color: @muted;
+    padding: 10px 14px;
+}
+message textbox {
+    background-color: transparent;
+    text-color: @bright;
+}

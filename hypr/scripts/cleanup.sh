@@ -31,11 +31,19 @@ printf '  pacman cache : %s\n  yay cache    : %s\n  journal logs : %s\n  thumbna
 # 1. pacman cache
 say "pacman cache"
 if ! command -v paccache >/dev/null 2>&1; then sudo pacman -S --needed --noconfirm pacman-contrib; fi
-sudo paccache -ruk0                      # every cached file of packages that are NOT installed any more
+# Directories inside the cache (download-XXXX left by interrupted downloads) are not package files:
+# paccache and "pacman -Scc" complain about them. Remove them first, quietly, whatever their names are.
+if [ -d /var/cache/pacman/pkg ]; then
+  n=$(sudo find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+  sudo find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} + 2>/dev/null || true
+  echo "  stale cache directories removed: $n"
+fi
+sudo paccache -ruk0 2>/dev/null || true  # cached files of packages that are NOT installed any more
 if [ "$ALL" = 1 ]; then
-  yes | sudo pacman -Scc                 # everything that is left
+  yes | sudo pacman -Scc >/dev/null 2>&1 || true   # everything that is left
+  sudo find /var/cache/pacman/pkg -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true
 else
-  sudo paccache -rk1                     # older versions of installed packages (keeps the newest one)
+  sudo paccache -rk1 2>/dev/null || true           # older versions of installed packages (keeps the newest one)
 fi
 
 # 2. AUR helper cache

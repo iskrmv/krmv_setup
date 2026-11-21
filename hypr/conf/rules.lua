@@ -14,3 +14,18 @@ hl.window_rule({
   float = true,
   center = true,
 })
+
+-- Waydroid (and some games/VMs) ask Hyprland to forward ALL shortcuts to them, which silently disables
+-- SUPER + K, SUPER + Q and friends while they are focused. Never allow that.
+hl.window_rule({
+  name = "no-shortcut-inhibit",
+  match = { class = ".*" },
+  no_shortcuts_inhibit = true,
+})
+
+-- The screenshot selection overlay must disappear at once, otherwise its fade-out ends up in the picture.
+hl.layer_rule({
+  name = "no-selection-fade",
+  match = { namespace = "^selection$" },
+  no_anim = true,
+})

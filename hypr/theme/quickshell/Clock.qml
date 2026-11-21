@@ -1,4 +1,5 @@
 // Clock.qml - bar shows HH:mm only; hover shows a floating popup with seconds + the whole month
+// A small dot marks days that have a reminder (add them in the clock app: click the clock, tab "Reminders").
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
@@ -6,6 +7,7 @@ import Quickshell
 Item {
     id: clock
     required property var theme
+    property var engine: null               // ClockEngine, used to mark days with reminders
     property bool suppressPopup: false      // true while the clock app is open
     signal clicked()
     implicitWidth: label.implicitWidth
@@ -23,6 +25,11 @@ Item {
         for (let i = 0; i < first; i++) out.push(0)
         for (let i = 1; i <= n; i++) out.push(i)
         return out
+    }
+    function hasNote(day) {
+        if (day <= 0 || clock.engine === null || clock.engine === undefined) return false
+        const d = new Date(minClock.date.getFullYear(), minClock.date.getMonth(), day)
+        return clock.engine.hasReminder(clock.engine.noteKey(d))
     }
 
     SystemClock { id: minClock; precision: SystemClock.Minutes }
@@ -105,6 +112,12 @@ Item {
                                 color: modelData === minClock.date.getDate() ? clock.theme.bg : clock.theme.fg
                                 font.bold: modelData === minClock.date.getDate()
                                 font.family: clock.theme.font; font.pixelSize: clock.theme.size - 1
+                            }
+                            Rectangle {
+                                anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 1 }
+                                width: 4; height: 4; radius: 0
+                                visible: clock.hasNote(modelData)
+                                color: modelData === minClock.date.getDate() ? clock.theme.bg : clock.theme.icon
                             }
                         }
                     }

@@ -1,4 +1,4 @@
-// ClockPanel.qml - the clock app: Timer, Alarm and Stopwatch. Opens under the bar's clock (click it, or SUPER + C).
+// ClockPanel.qml - the clock app: Timer, Alarm, Stopwatch and Reminders. Opens under the bar's clock (click it, or SUPER + C).
 // The panel has a FIXED size, so switching tabs never moves anything. Click outside or press Esc to close.
 import QtQuick
 import QtQuick.Layouts
@@ -12,16 +12,21 @@ PanelWindow {
     required property var engine
     signal closeRequested()
 
-    property int tab: 0                      // 0 timer, 1 alarm, 2 stopwatch
+    property int tab: 0                      // 0 timer, 1 alarm, 2 stopwatch, 3 reminders
     property string message: ""              // a short hint or error under the inputs
     property var addDays: []                 // the days chosen for the new alarm (empty = once)
+    property var noteMonth: new Date()       // month shown in the Reminders tab
+    property var noteSelected: new Date()    // date being edited in the Reminders tab
+
+    readonly property var noteMonthNames: ["January", "February", "March", "April", "May", "June",
+                                           "July", "August", "September", "October", "November", "December"]
 
     anchors { top: true }                    // only the top edge: it is centered under the clock
     margins { top: 38 }
     exclusionMode: ExclusionMode.Ignore
     focusable: true
     implicitWidth: 380
-    implicitHeight: 440
+    implicitHeight: 490
     color: "transparent"
 
     Shortcut { sequence: "Escape"; onActivated: panel.closeRequested() }
@@ -44,6 +49,38 @@ PanelWindow {
         addDays = a
     }
 
+    // ---- calendar reminders ----
+    function noteCells(d) {
+        const y = d.getFullYear(), m = d.getMonth()
+        const first = (new Date(y, m, 1).getDay() + 6) % 7   // week starts on Monday
+        const n = new Date(y, m + 1, 0).getDate()
+        const out = []
+        for (let i = 0; i < first; i++) out.push(0)
+        for (let i = 1; i <= n; i++) out.push(i)
+        return out
+    }
+    function noteDate(day) { return new Date(noteMonth.getFullYear(), noteMonth.getMonth(), day) }
+    function noteKey(day) { return engine.noteKey(noteDate(day)) }
+    function hasNote(day) { return day > 0 && engine.hasReminder(noteKey(day)) }
+    function selectNoteDay(day) {
+        if (day <= 0) return
+        noteSelected = noteDate(day)
+        message = ""
+    }
+    function shiftNoteMonth(delta) {
+        noteMonth = new Date(noteMonth.getFullYear(), noteMonth.getMonth() + delta, 1)
+        const last = new Date(noteMonth.getFullYear(), noteMonth.getMonth() + 1, 0).getDate()
+        noteSelected = new Date(noteMonth.getFullYear(), noteMonth.getMonth(), Math.min(noteSelected.getDate(), last))
+    }
+    function addReminder() {
+        const t = timeInput.text.trim().replace(/^(\d):/, "0$1:")
+        if (!engine.validTime(t)) { message = "Time must look like 14:30"; return }
+        if (reminderInput.text.trim() === "") { message = "Type what to remind you about"; return }
+        engine.addReminder(engine.noteKey(noteSelected), t, reminderInput.text)
+        reminderInput.text = ""
+        message = "Reminder added. You get a notification at " + t
+    }
+
     Rectangle {
         anchors.fill: parent
         color: panel.theme.bg
@@ -59,7 +96,7 @@ PanelWindow {
                 Layout.fillWidth: true
                 spacing: 22
                 Repeater {
-                    model: ["Timer", "Alarm", "Stopwatch"]
+                    model: ["Timer", "Alarm", "Stopwatch", "Reminders"]
                     delegate: Item {
                         id: tabItem
                         required property string modelData
@@ -75,7 +112,12 @@ PanelWindow {
                             font.family: panel.theme.font; font.pixelSize: panel.theme.size + 1
                         }
                         Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 2; color: panel.theme.icon; visible: panel.tab === tabItem.index }
-                        MouseArea { anchors.fill: parent; onClicked: { panel.tab = tabItem.index; panel.message = "" } }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                panel.tab = tabItem.index; panel.message = ""
+                                                            }
+                        }
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -287,6 +329,161 @@ PanelWindow {
                     spacing: 12
                     PanelButton { theme: panel.theme; accent: true; text: panel.engine.swRunning ? "Stop" : (panel.engine.swElapsed > 0 ? "Resume" : "Start"); onClicked: panel.engine.swToggle() }
                     PanelButton { theme: panel.theme; text: "Reset"; active: panel.engine.swElapsed > 0 && !panel.engine.swRunning; onClicked: panel.engine.swReset() }
+                }
+                Item { Layout.fillHeight: true }
+            }
+
+            // ================= REMINDERS =================
+            ColumnLayout {
+                visible: panel.tab === 3
+                Layout.fillWidth: true; Layout.fillHeight: true
+                spacing: 8
+
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
+                    PanelButton { theme: panel.theme; text: "<"; onClicked: panel.shiftNoteMonth(-1) }
+                    Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        text: panel.noteMonthNames[panel.noteMonth.getMonth()] + " " + panel.noteMonth.getFullYear()
+                        color: panel.theme.icon; font.bold: true
+                        font.family: panel.theme.font; font.pixelSize: panel.theme.size
+                    }
+                    PanelButton { theme: panel.theme; text: ">"; onClicked: panel.shiftNoteMonth(1) }
+                }
+
+                Grid {
+                    Layout.alignment: Qt.AlignHCenter
+                    columns: 7
+                    Repeater {
+                        model: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+                        delegate: Text {
+                            required property string modelData
+                            width: 40; height: 18
+                            horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                            text: modelData; color: panel.theme.muted
+                            font.family: panel.theme.font; font.pixelSize: panel.theme.size - 2
+                        }
+                    }
+                    Repeater {
+                        model: panel.noteCells(panel.noteMonth)
+                        delegate: Item {
+                            id: noteDay
+                            required property int modelData
+                            readonly property bool selected: modelData > 0 && panel.engine.noteKey(panel.noteSelected) === panel.noteKey(modelData)
+                            width: 40; height: 22
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 34; height: 20; radius: 0
+                                color: noteDay.selected ? panel.theme.icon : "transparent"
+                                border.width: noteDay.selected ? 0 : 1
+                                border.color: panel.theme.muted
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData > 0 ? modelData : ""
+                                color: noteDay.selected ? panel.theme.bg : panel.theme.fg
+                                font.bold: noteDay.selected
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1
+                            }
+                            Rectangle {
+                                anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 1 }
+                                width: 4; height: 4; radius: 0
+                                visible: panel.hasNote(modelData)
+                                color: noteDay.selected ? panel.theme.bg : panel.theme.icon
+                            }
+                            MouseArea { anchors.fill: parent; onClicked: panel.selectNoteDay(modelData) }
+                        }
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: "Reminders for " + panel.engine.noteKey(panel.noteSelected)
+                    color: panel.theme.icon
+                    font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1
+                }
+                // reminders of the selected day (max 3 shown)
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Repeater {
+                        model: panel.engine.remindersOn(panel.engine.noteKey(panel.noteSelected)).slice(0, 3)
+                        delegate: Item {
+                            id: remRow
+                            required property var modelData
+                            width: parent.width; height: 22
+                            Text {
+                                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                                text: remRow.modelData.time
+                                color: remRow.modelData.done ? panel.theme.dim : panel.theme.icon; font.bold: true
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1
+                            }
+                            Text {
+                                anchors { left: parent.left; leftMargin: 56; right: del.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                                text: remRow.modelData.text
+                                color: remRow.modelData.done ? panel.theme.dim : panel.theme.fg
+                                elide: Text.ElideRight
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1
+                            }
+                            Text {
+                                id: del
+                                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                                text: "\uf00d"; color: panel.theme.red
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size
+                                MouseArea { anchors.fill: parent; anchors.margins: -4; onClicked: panel.engine.removeReminder(remRow.modelData.id) }
+                            }
+                        }
+                    }
+                    Text {
+                        visible: panel.engine.remindersOn(panel.engine.noteKey(panel.noteSelected)).length === 0
+                        text: "Nothing planned for this day"
+                        color: panel.theme.dim
+                        font.family: panel.theme.font; font.pixelSize: panel.theme.size - 2
+                    }
+                }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
+                    Rectangle {
+                        Layout.preferredWidth: 72; Layout.preferredHeight: 32
+                        color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                        border.color: timeInput.activeFocus ? panel.theme.icon : panel.theme.muted
+                        TextInput {
+                            id: timeInput
+                            anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                            verticalAlignment: TextInput.AlignVCenter
+                            color: panel.theme.fg; clip: true; maximumLength: 5
+                            inputMethodHints: Qt.ImhPreferNumbers
+                            font.family: panel.theme.font; font.pixelSize: panel.theme.size
+                            onAccepted: reminderInput.forceActiveFocus()
+                            Text {
+                                visible: timeInput.text === ""
+                                anchors.fill: parent; verticalAlignment: TextInput.AlignVCenter
+                                text: "HH:MM"; color: panel.theme.dim
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1
+                            }
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.preferredHeight: 32
+                        color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                        border.color: reminderInput.activeFocus ? panel.theme.icon : panel.theme.muted
+                        TextInput {
+                            id: reminderInput
+                            anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                            verticalAlignment: TextInput.AlignVCenter
+                            color: panel.theme.fg; clip: true
+                            font.family: panel.theme.font; font.pixelSize: panel.theme.size
+                            onAccepted: panel.addReminder()
+                            Text {
+                                visible: reminderInput.text === ""
+                                anchors.fill: parent; verticalAlignment: TextInput.AlignVCenter
+                                text: "Remind me to ... (Enter)"; color: panel.theme.dim
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1
+                            }
+                        }
+                    }
+                    PanelButton { theme: panel.theme; text: "Add"; accent: true; onClicked: panel.addReminder() }
                 }
                 Item { Layout.fillHeight: true }
             }

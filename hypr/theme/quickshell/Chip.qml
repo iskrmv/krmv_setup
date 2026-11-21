@@ -19,7 +19,8 @@ Item {
     readonly property bool hovered: area.containsMouse
     readonly property bool engaged: area.containsMouse || hoverPopup || showPopup   // icon or its popup is in use
     signal clicked()
-    signal scrolled(int dy)
+    signal rightClicked()
+    signal scrolled(int dy, int pixelDy)
     signal sliderMoved(real value)
 
     // Only ONE popup is open at a time: hovering another icon closes this popup immediately
@@ -80,8 +81,9 @@ Item {
         id: area
         anchors.fill: parent
         hoverEnabled: true
-        onClicked: chip.clicked()
-        onWheel: wheel => chip.scrolled(wheel.angleDelta.y)
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: mouse => { if (mouse.button === Qt.RightButton) chip.rightClicked(); else chip.clicked() }
+        onWheel: wheel => chip.scrolled(wheel.angleDelta.y, wheel.pixelDelta.y)
     }
 
     PopupWindow {
@@ -132,7 +134,7 @@ Item {
                     theme: chip.theme
                     value: chip.sliderValue
                     onMoved: v => chip.sliderMoved(v)
-                    onWheeled: dy => chip.scrolled(dy)
+                    onWheeled: (dy, py) => chip.scrolled(dy, py)
                 }
                 // Small arrow (right): opens / closes the extra area. It turns smoothly.
                 Item {

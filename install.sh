@@ -11,6 +11,7 @@
 #   SKIP_ZSH=1       do not touch zsh
 #   SKIP_NVIM=1      do not install LazyVim
 #   SKIP_DNS=1       do not install the dns command (DNS-over-TLS switcher)
+#   WIFI_IWD=1       switch NetworkManager to the iwd Wi-Fi backend so that "impala" works (off by default)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,17 +52,20 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     pipewire pipewire-pulse pipewire-alsa wireplumber networkmanager bluez bluez-utils blueman upower
     # fonts
     ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji
-    # clipboard, screenshots, file manager, helpers
+    # clipboard, screenshots, file manager, helpers (hyprpicker: Wayland color picker; btop: system monitor)
     wl-clipboard cliphist grim slurp libnotify jq yazi fd ripgrep fzf poppler wev pacman-contrib ttf-poppins
-    # media keys, XWayland + Qt/GTK Wayland support (root GUI apps like Ventoy and PINCE need XWayland and xhost)
-    playerctl xorg-xwayland xorg-xhost qt5-wayland qt6-wayland
+    hyprpicker btop
+    # media keys, camera, XWayland + Qt/GTK Wayland support (root GUI apps like Ventoy and PINCE need XWayland and xhost)
+    playerctl snapshot alsa-utils geoclue xorg-xwayland xorg-xhost qt5-wayland qt6-wayland
     xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm   # Qt's X11 plugin needs these (PINCE, Ventoy GUI)
     # neovim (for LazyVim): editor, tools and language-server helpers
     neovim lazygit tree-sitter-cli nodejs npm unzip
     # fastfetch greeting, night mode (blue light filter), xdg-utils (default apps)
     fastfetch hyprsunset xdg-utils
-    # clock app alarm sound; image viewer (swayimg: fast, native Wayland, opens nearly every format) and its format libraries
-    sound-theme-freedesktop swayimg libheif libjxl libavif libraw
+    # clock app alarm sound; image viewer (swayimg: tiny, native Wayland, opens nearly every format incl. SVG)
+    sound-theme-freedesktop swayimg libheif libjxl libavif libraw librsvg libwebp
+    # impala: Wi-Fi TUI (type "impala" in the launcher). It talks to iwd, see the optional WIFI_IWD=1 step below.
+    impala iwd
     # dark mode
     gnome-themes-extra adwaita-icon-theme dconf qt6ct
     # shell
@@ -78,6 +82,7 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
   "${PAC[@]}" "${repo[@]}" || warn "Some packages failed to install - continuing"
 
   command -v qs >/dev/null 2>&1 || aur+=("quickshell-git")
+  aur+=("mpvpaper")   # animated/video wallpapers: AUR-only (yay pulls its mpv dependency automatically)
   # the powerlevel10k package is called zsh-theme-powerlevel10k-git in the AUR
   for i in "${!aur[@]}"; do
     if [ "${aur[i]}" = "zsh-theme-powerlevel10k" ]; then aur[i]="zsh-theme-powerlevel10k-git"; fi
@@ -150,9 +155,14 @@ done
 
 cp -r "$HERE/hypr/hyprland.lua" "$HERE/hypr/hypridle.conf" "$HERE/hypr/conf" "$HERE/hypr/theme" \
       "$HERE/hypr/scripts" "$HERE/hypr/shell" "$HERE/hypr/data" "$CFG/hypr/"
-mkdir -p "$CFG/hypr/wallpapers"
+mkdir -p "$CFG/hypr/wallpapers" "$CFG/hypr/wallpapers/animated"
 cp -r --update=none "$HERE/hypr/wallpapers/." "$CFG/hypr/wallpapers/"     # never overwrites wallpapers you already have
+cp -r --update=none "$HERE/hypr/wallpapers/animated/." "$CFG/hypr/wallpapers/animated/"
 rm -f "$CFG/hypr/conf/mice.lua" "$CFG/hypr/scripts/mouse-scroll.sh"   # leftovers from old versions
+
+# A real command, not a shell alias: the rofi launcher uses non-interactive shells where aliases do not exist.
+sudo install -Dm755 "$HERE/hypr/scripts/sudogui.sh" /usr/local/bin/sudogui
+sudo install -Dm755 "$HERE/hypr/scripts/run-cmd.sh" /usr/local/bin/run-cmd      # the rofi launcher runs typed commands through it
 
 # ------------------------------------------------------------------ 2b. Anurati font (desktop clock)
 # Not stored in this repo (it is free for personal use only): it is downloaded from the original KDE widget's repository.
@@ -183,14 +193,17 @@ if [ ! -f /usr/share/applications/yazi.desktop ] && [ ! -f "$HOME/.local/share/a
 fi
 command -v xdg-mime >/dev/null 2>&1 && xdg-mime default yazi.desktop inode/directory || true
 
-# swayimg is the default image viewer (it opens PNG, JPEG, GIF, WebP, AVIF, HEIC, JXL, SVG, TIFF, BMP, RAW ...)
-if [ ! -f /usr/share/applications/swayimg.desktop ] && [ ! -f "$HOME/.local/share/applications/swayimg.desktop" ]; then
+# swayimg is the default image viewer (PNG, JPEG, GIF, WebP, HEIF/HEIC, AVIF, SVG, TIFF, BMP, JXL, RAW ...)
+# A user-edited swayimg.desktop is left alone; otherwise generate one covering all common image formats.
+IMG_MIMES=(image/png image/jpeg image/gif image/webp image/heif image/heic image/avif image/svg+xml image/tiff image/bmp image/jxl)
+IMG_MIME_LIST="$(IFS=';'; printf '%s' "${IMG_MIMES[*]}");"
+if [ ! -f "$HOME/.local/share/applications/swayimg.desktop" ]; then
   printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=swayimg' 'Comment=Image viewer' 'Exec=swayimg %F' \
-    'Icon=image-x-generic' 'MimeType=image/png;image/jpeg;image/gif;image/webp;image/avif;image/heic;image/jxl;image/svg+xml;image/tiff;image/bmp;' \
-    'Categories=Graphics;Viewer;' > "$HOME/.local/share/applications/swayimg.desktop"
+    'Icon=image-x-generic' "MimeType=$IMG_MIME_LIST" 'Terminal=false' 'Categories=Graphics;Viewer;' \
+    > "$HOME/.local/share/applications/swayimg.desktop"
 fi
 if command -v xdg-mime >/dev/null 2>&1; then
-  for m in image/png image/jpeg image/gif image/webp image/avif image/heic image/heif image/jxl image/svg+xml image/tiff image/bmp; do
+  for m in "${IMG_MIMES[@]}"; do
     xdg-mime default swayimg.desktop "$m"
   done
 fi
@@ -211,18 +224,63 @@ link_cfg() {   # link_cfg <source> <target>: back up a real file, then symlink
   if [ -e "$2" ] && [ ! -L "$2" ]; then mv "$2" "$2.bak-$TS"; echo "Backed up $2"; fi
   ln -sf "$1" "$2"
 }
-say "Linking kitty, rofi, hyprlock and fastfetch configs"
+say "Linking kitty, rofi, hyprlock, fastfetch and yazi configs"
 link_cfg "$CFG/hypr/theme/kitty/kitty.conf"        "$CFG/kitty/kitty.conf"
 link_cfg "$CFG/hypr/theme/rofi/config.rasi"        "$CFG/rofi/config.rasi"
 link_cfg "$CFG/hypr/theme/hyprlock/hyprlock.conf"  "$CFG/hypr/hyprlock.conf"
 link_cfg "$CFG/hypr/theme/fastfetch/config.jsonc"  "$CFG/fastfetch/config.jsonc"
+link_cfg "$CFG/hypr/theme/yazi/yazi.toml"          "$CFG/yazi/yazi.toml"
 
 say "Setting up system-wide dark mode"
 link_cfg "$CFG/hypr/theme/gtk/settings3.ini"             "$CFG/gtk-3.0/settings.ini"
 link_cfg "$CFG/hypr/theme/gtk/settings4.ini"             "$CFG/gtk-4.0/settings.ini"
 link_cfg "$CFG/hypr/theme/portal/hyprland-portals.conf"  "$CFG/xdg-desktop-portal/hyprland-portals.conf"
+mkdir -p "$CFG/qt6ct/colors"
+cp "$CFG/hypr/theme/qt6ct/colors/krmv-tokyo.conf" "$CFG/qt6ct/colors/krmv-tokyo.conf"
+sed -i "s|^color_scheme_path=.*|color_scheme_path=$CFG/qt6ct/colors/krmv-tokyo.conf|" "$CFG/hypr/theme/qt6ct/qt6ct.conf"   # qt6ct needs an absolute path
 link_cfg "$CFG/hypr/theme/qt6ct/qt6ct.conf"              "$CFG/qt6ct/qt6ct.conf"
 sh "$CFG/hypr/scripts/dark-mode.sh" 2>/dev/null || true   # applies right away when a session bus exists
+
+# swayimg: Tokyo Night colors (init.lua is only used by swayimg 4.x; older versions ignore it). Never overwritten.
+if [ ! -e "$CFG/swayimg/init.lua" ]; then
+  mkdir -p "$CFG/swayimg"
+  cp "$CFG/hypr/theme/swayimg/init.lua" "$CFG/swayimg/init.lua"
+fi
+
+# ------------------------------------------------------------------ 3b. btop (TTY colors, transparent background)
+# btop uses the 16 terminal colors ("TTY" theme), so it matches the kitty Tokyo Night palette in every terminal.
+# Only these two keys are changed; the rest of an existing btop.conf is left alone. Done for you AND for root.
+set_btop_keys() {   # set_btop_keys <config-file> <use-sudo: 0|1>
+  local f="$1" priv=""
+  [ "$2" = 1 ] && priv="sudo"
+  $priv mkdir -p "$(dirname "$f")"
+  $priv touch "$f"
+  for kv in 'color_theme|"TTY"' 'theme_background|False'; do
+    key="${kv%%|*}"; val="${kv#*|}"
+    if $priv grep -qE "^[[:space:]]*${key}[[:space:]]*=" "$f" 2>/dev/null; then
+      $priv sed -i -E "s|^[[:space:]]*${key}[[:space:]]*=.*|$key = $val|" "$f"
+    else
+      printf '%s = %s\n' "$key" "$val" | $priv tee -a "$f" >/dev/null
+    fi
+  done
+}
+say "Setting up btop (TTY colors, no theme background) for $USER and root"
+set_btop_keys "$CFG/btop/btop.conf" 0
+set_btop_keys "/root/.config/btop/btop.conf" 1 || warn "Could not write the root btop config"
+
+# ------------------------------------------------------------------ 3c. Chrome/Chromium on native Wayland
+# XWayland browsers can scroll at a different speed than native-Wayland apps. These flag files
+# are read by the Arch Chromium and Google Chrome wrappers. Custom content is never overwritten.
+add_wayland_flags() {  # add_wayland_flags <flags-file>
+  local f="$1" marker="# krmv-setup: native Wayland (safe to remove)"
+  mkdir -p "$(dirname "$f")"
+  if [ -f "$f" ] && grep -qF "krmv-setup: native Wayland" "$f"; then return 0; fi
+  if [ -s "$f" ] && [ "$(tail -c1 "$f" | wc -l)" -eq 0 ]; then printf '\n' >> "$f"; fi
+  printf '%s\n%s\n' "$marker" '--ozone-platform=wayland' >> "$f"
+}
+for f in "$CFG/chrome-flags.conf" "$CFG/chromium-flags.conf" "$CFG/chrome-beta-flags.conf"; do
+  add_wayland_flags "$f"
+done
 
 # ------------------------------------------------------------------ 4. zsh (oh-my-zsh + powerlevel10k + .zshrc + aliases)
 if [ -z "${SKIP_ZSH:-}" ]; then
@@ -276,8 +334,19 @@ if [ -f /etc/bluetooth/main.conf ]; then
   sudo systemctl restart bluetooth || true
 fi
 
+# Saved Wi-Fi profiles connect automatically on boot/reconnect, not only after a manual click.
+sh "$CFG/hypr/scripts/network.sh" autoconnect || warn "Could not enable Wi-Fi autoconnect now"
+
 # The bar is the notification daemon, so make sure mako is not running
 pkill -x mako 2>/dev/null || true
+
+# Optional: let NetworkManager use iwd for Wi-Fi so that the "impala" Wi-Fi TUI works next to the bar's Wi-Fi panel.
+if [ -n "${WIFI_IWD:-}" ]; then
+  say "Switching NetworkManager to the iwd Wi-Fi backend"
+  printf '[device]\nwifi.backend=iwd\n' | sudo tee /etc/NetworkManager/conf.d/20-iwd.conf >/dev/null
+  sudo systemctl enable --now iwd || true
+  echo "iwd backend written. Reboot (or restart NetworkManager) to apply it."
+fi
 
 # ------------------------------------------------------------------ 5b. DNS switcher (dns)
 # Only installs the command. It never changes the user's DNS settings.
@@ -320,7 +389,8 @@ cat <<MSG
 Next steps:
   1. Reboot (or log out and pick the Hyprland session in SDDM).
   2. Press SUPER + /  to see every shortcut.
-  3. Put more wallpapers in  $CFG/hypr/wallpapers/desktop  and  .../sddm  (then run this script again for SDDM).
+  3. Put still wallpapers in  $CFG/hypr/wallpapers/desktop  and  .../sddm , animated ones in  .../animated
+     (then run this script again for SDDM). Use  wallpaper.sh next  to cycle through desktop + animated.
   4. Test the SDDM theme:  sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/krmv-tokyo
 Old configs were backed up (look for backup-* and .bak-* names).
 MSG

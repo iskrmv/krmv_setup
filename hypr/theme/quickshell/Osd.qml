@@ -42,7 +42,7 @@ PanelWindow {
 
     readonly property var msgGlyphs: ({
         "play": "\uf04b", "pause": "\uf04c", "next": "\uf051", "prev": "\uf048", "music": "\uf001",
-        "touchpad": "\uf245", "touchpad-off": "\uf05e", "night": "\uf186"
+        "touchpad": "\uf245", "touchpad-off": "\uf05e", "night": "\uf186", "keyboard": "\uf11c"
     })
     readonly property string glyph: kind === "message" ? (msgGlyphs[msgIcon] || "\uf05a")
                                     : kind === "brightness" ? "\uf185"

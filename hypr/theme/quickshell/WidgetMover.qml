@@ -1,6 +1,7 @@
 // WidgetMover.qml - the desktop widget editor. The screen dims; you can
-//   - drag a widget where you want it,
-//   - switch widgets on and off in the list at the top (more widgets will appear in this list later),
+//   - drag the clock where you want it,
+//   - switch widgets on and off in the list at the top (Clock, Network speed, Media output).
+// The list comes from shell.qml, so a widget only needs an entry in widgetList to appear here.
 // Enter saves, R puts the clock back to its default place, Delete hides the clock, Esc cancels.
 import QtQuick
 import QtQuick.Layouts
@@ -78,7 +79,7 @@ PanelWindow {
                     }
                 }
                 Text {
-                    text: "More widgets will show up here."
+                    text: "Toggles save immediately. Drag the clock, then press Enter to keep its place."
                     color: mover.theme.dim
                     font.family: mover.theme.font; font.pixelSize: mover.theme.size - 3
                 }

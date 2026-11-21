@@ -1,6 +1,6 @@
 #!/bin/sh
 # Opens your DEFAULT app for a role. The defaults are chosen in SUPER + I > Default apps.
-# Usage: open-default.sh terminal|browser|files|editor|video|audio|image|pdf [arguments]
+# Usage: open-default.sh terminal|browser|files|editor|video|audio|image|pdf|camera [arguments]
 STATE="${KRMV_STATE:-$HOME/.local/state/krmv-setup}"
 APP_DIRS="${APP_DIRS:-$HOME/.local/share/applications /usr/local/share/applications /usr/share/applications /var/lib/flatpak/exports/share/applications $HOME/.local/share/flatpak/exports/share/applications}"
 
@@ -58,6 +58,9 @@ launch_desktop() {  # launch_desktop <file.desktop> [arguments]
 role="$1"; [ $# -gt 0 ] && shift
 case "$role" in
   terminal) t="$(terminal_cmd)"; exec "$t" "$@" ;;
+  camera)
+    for c in snapshot cheese kamoso guvcview; do command -v "$c" >/dev/null 2>&1 && exec "$c" "$@"; done
+    notify-send "Camera" "No camera app found. Run the setup installer again (it installs snapshot)."; exit 1 ;;
   browser|files|editor|video|audio|image|pdf)
     mime="$(role_mime "$role")"
     desk="$(xdg-mime query default "$mime" 2>/dev/null)"
@@ -68,5 +71,5 @@ case "$role" in
       *)       notify-send "Default apps" "No default $role app is set. Press SUPER + I to choose one."; exit 1 ;;
     esac
     ;;
-  *) echo "Usage: open-default.sh terminal|browser|files|editor|video|audio|image|pdf [arguments]"; exit 1 ;;
+  *) echo "Usage: open-default.sh terminal|browser|files|editor|video|audio|image|pdf|camera [arguments]"; exit 1 ;;
 esac

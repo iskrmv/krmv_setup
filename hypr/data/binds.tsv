@@ -1,12 +1,17 @@
 # id	keys	description	command      (tab separated). Change a shortcut with SUPER + I > Keyboard shortcuts, or edit this file.
 terminal	SUPER + Return	Terminal	sh ~/.config/hypr/scripts/open-default.sh terminal
-launcher	ALT + space	App launcher	rofi -show drun
+launcher	ALT + space	App launcher (type a command if it is not listed)	rofi -show drun
 files	SUPER + E	File manager	sh ~/.config/hypr/scripts/open-default.sh files
 browser	SUPER + B	Web browser	sh ~/.config/hypr/scripts/open-default.sh browser
 settings	SUPER + I	Settings: default apps, shortcuts, widgets	sh ~/.config/hypr/scripts/settings.sh
 clockapp	SUPER + C	Clock: timer, alarm, stopwatch	qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call widgets clock
 clipboard	SUPER + V	Clipboard history	sh ~/.config/hypr/scripts/clipboard.sh
 emoji	SUPER + period	Emoji picker	sh ~/.config/hypr/scripts/emoji.sh
+color	SUPER + SHIFT + P	Color picker (copy a hex value)	sh ~/.config/hypr/scripts/color.sh
+camera	SUPER + SHIFT + O	Camera	sh ~/.config/hypr/scripts/open-default.sh camera
+monitor	SUPER + SHIFT + T	System monitor (btop)	sh ~/.config/hypr/scripts/run-in-terminal.sh btop
+audio	SUPER + SHIFT + A	Choose an audio output	sh ~/.config/hypr/scripts/audio.sh select
+network	SUPER + SHIFT + N	Wi-Fi / NetworkManager menu	sh ~/.config/hypr/scripts/network.sh menu
 shot-region	SUPER + SHIFT + S	Screenshot: select an area	sh ~/.config/hypr/scripts/screenshot.sh region
 shot-monitor	Print	Screenshot: focused monitor, instantly	sh ~/.config/hypr/scripts/screenshot.sh monitor
 shot-all	CTRL + Print	Screenshot: all monitors, instantly	sh ~/.config/hypr/scripts/screenshot.sh all
