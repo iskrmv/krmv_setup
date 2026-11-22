@@ -6,6 +6,13 @@ local mod = "SUPER"
 -- Change them with SUPER + I > Keyboard shortcuts. This file keeps the fixed ones.
 pcall(require, "conf/custom-binds")
 
+-- ALT + TAB window switcher (theme/quickshell/Switcher.qml): hold ALT, tap TAB to move on, let go of ALT to switch
+local sw = "qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call switcher "
+hl.bind("ALT + Tab",         hl.dsp.exec_cmd(sw .. "next"))
+hl.bind("ALT + SHIFT + Tab", hl.dsp.exec_cmd(sw .. "prev"))
+hl.bind("ALT + ALT_L",         hl.dsp.exec_cmd(sw .. "commit"), { release = true, transparent = true })
+hl.bind("ALT + SHIFT + ALT_L", hl.dsp.exec_cmd(sw .. "commit"), { release = true, transparent = true })
+
 -- Windows
 hl.bind(mod .. " + Q", hl.dsp.window.close())                                 -- close politely
 hl.bind(mod .. " + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))

@@ -1,3 +1,4 @@
+ALT + Tab              Switch windows (hold ALT, tap TAB, release ALT)
 SUPER + Q              Close window
 SUPER + F              Fullscreen
 SUPER + T              Toggle floating

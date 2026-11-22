@@ -81,12 +81,12 @@ Three rules keep the laziness honest:
 | **Color picker** | `SUPER + SHIFT + P` picks any pixel with `hyprpicker` and copies the hex value to the clipboard |
 | **Camera** | `SUPER + SHIFT + O` opens `snapshot` (GNOME Camera, simple and dark-theme friendly) |
 | **System monitor** | `btop` with the **TTY** color theme (uses your terminal's Tokyo Night colors) and the theme background **off**, written for your user **and root**. `SUPER + SHIFT + T` opens it |
-| **Screenshots** | `grim` + `slurp`. `SUPER + SHIFT + S` **freezes the screen** (hyprpicker draws an exact copy) while you select, and the selection overlay has no fade, so the picture is never tinted blue |
+| **Screenshots** | `grim` + `slurp`. `SUPER + SHIFT + S` **freezes the screen** (needs `imagemagick`; the mouse pointer is never in the picture) (hyprpicker draws an exact copy) while you select, and the selection overlay has no fade, so the picture is never tinted blue |
 | **Animated wallpapers** | Drop `.mp4 .webm .mkv .mov .gif` files into `~/.config/hypr/wallpapers/animated`; `SUPER + W` cycles stills and animated ones. `mpvpaper` plays them silently and pauses when a fullscreen window covers it. Your last wallpaper is restored at login |
 | **Location** | Settings → Location: GeoClue app permissions (`/etc/geoclue/geoclue.conf`). Pick an app to switch ALLOWED / DENIED, or add one by its desktop id. A GeoClue agent runs at login for apps not on the list |
 | **Audio** | Settings → Audio: **"Laptop speakers too quiet?"** raises every hidden ALSA level (Master, Speaker, PCM...) to 100% and saves it; select an output; copy diagnostics |
 | **Calendar reminders** | Click the clock → **Reminders** tab: pick a day, type `HH:MM` and a text, Enter. At that minute a notification pops up. Days with reminders get a dot in the hover calendar. Stored in `~/.local/state/krmv-setup/reminders.json` |
-| **rofi launcher** | `ALT + SPACE`: **`Tab` switches to the list of command-line / terminal programs** (and back); type letters and apps that **start** with them come first, looser guesses below (`len` → Lens... first, Blender after). For command-line / terminal tools type **`run <command>`** (`run btop`, `run tork`, `run nvim`): it opens in your terminal and waits for Enter when the command ends. A bare command name also works. Mistyped name → a clear red error box. Scrolling is right for touchpad **and** mouse (a small `rofi` wrapper handles it) |
+| **rofi launcher** | `ALT + SPACE`: **`Tab` switches between the app list and the list of command-line / terminal programs**; type letters and apps that **start** with them come first, looser guesses below (`len` → Lens... first, Blender after). For command-line / terminal tools type **`run <command>`** (`run btop`, `run tork`, `run nvim`): it opens in your terminal and waits for Enter when the command ends. A bare command name also works. Mistyped name → a clear red error box. Scrolling is right for touchpad **and** mouse (a small `rofi` wrapper handles it) |
 
 | **yazi** | Preview pane and image previews are on by default (hidden files are off; press `.` in yazi to toggle them); everything opens with your default apps (`xdg-open`). Settings → Default apps → **More** picks an app per exact file type |
 
@@ -100,7 +100,8 @@ Three rules keep the laziness honest:
 | --- | --- |
 | Open an app | `ALT + SPACE`, type its first letters, Enter |
 | Run a command-line tool | `ALT + SPACE`, press `Tab` for the command list (or type `run btop`), Enter |
-| See / switch between all open windows | `ALT + TAB` |
+| Switch between open windows | Hold `ALT`, tap `TAB` for the next one (`SHIFT + TAB` goes back), let go of `ALT` to switch. A quick tap = previous window |
+| Go back to the classic password dialog | `SUPER + I` → Password dialog (themed / classic) |
 | Change or turn off DNS | `SUPER + I` → DNS |
 | Download torrents in the terminal | `ALT + SPACE`, `run tork` |
 | See every shortcut | `SUPER + /` |
@@ -152,7 +153,7 @@ Press **SUPER + /** at any time to see this list on screen.
 | `SUPER + SHIFT + P` | Color picker (copy a hex value) |
 | `SUPER + SHIFT + O` | Camera |
 | `SUPER + SHIFT + T` | System monitor (btop, in the default terminal) |
-| `ALT + TAB` | List every open window (last used first); Enter switches |
+| `ALT + TAB` | Hold ALT, tap TAB to walk the window list, release ALT to switch |
 | `SUPER + SHIFT + A` | Choose an audio output |
 | `SUPER + SHIFT + N` | Wi-Fi / NetworkManager menu (autoconnect, connect, list) |
 | `SUPER + SHIFT + S` | Screenshot: select an area |

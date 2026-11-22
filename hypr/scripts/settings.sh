@@ -356,7 +356,7 @@ dns_menu() {
 # ------------------------------------------------------------------ main menu
 main() {
   while :; do
-    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nNetwork (Wi-Fi autoconnect)\nDNS (change or turn off)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
+    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nNetwork (Wi-Fi autoconnect)\nDNS (change or turn off)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nPassword dialog (themed / classic)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
     case "$pick" in
       "Default apps") default_apps_menu ;;
       "Keyboard shortcuts") shortcuts_menu ;;
@@ -365,6 +365,9 @@ main() {
       "DNS"*) dns_menu ;;
       "Location"*) location_menu ;;
       "Audio"*) audio_menu ;;
+      "Password dialog"*)
+        if [ -e "$STATE/polkit-stock" ]; then rm -f "$STATE/polkit-stock"; note "Themed password dialog ON. Log out and in (or restart the bar) to apply."
+        else mkdir -p "$STATE"; : > "$STATE/polkit-stock"; note "Classic password dialog ON. Log out and in (or restart the bar) to apply."; fi ;;
       "Night mode"*) sh "$CFG/scripts/nightmode.sh" toggle ;;
     esac
   done

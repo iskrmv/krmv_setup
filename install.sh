@@ -55,7 +55,7 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     wl-clipboard cliphist grim slurp libnotify jq yazi fd ripgrep fzf poppler wev pacman-contrib ttf-poppins
     hyprpicker btop
     # media keys, camera, XWayland + Qt/GTK Wayland support (root GUI apps like Ventoy and PINCE need XWayland and xhost)
-    playerctl snapshot alsa-utils geoclue xorg-xwayland xorg-xhost qt5-wayland qt6-wayland
+    playerctl snapshot imagemagick alsa-utils geoclue xorg-xwayland xorg-xhost qt5-wayland qt6-wayland
     xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm   # Qt's X11 plugin needs these (PINCE, Ventoy GUI)
     # neovim (for LazyVim): editor, tools and language-server helpers
     neovim lazygit tree-sitter-cli nodejs npm unzip

@@ -20,16 +20,39 @@ trap cleanup EXIT HUP INT TERM
 case "$mode" in
   region)
     pidof slurp >/dev/null 2>&1 && exit 0
+    # 1. grab the whole screen FIRST: grim never draws the mouse pointer, and nothing is on top yet
+    full="$(mktemp --suffix=.png)"
+    grim "$full" || { rm -f "$full"; exit 1; }
+    # 2. freeze the screen while you select (the frozen copy is only for your eyes, it is not what gets saved)
     if command -v hyprpicker >/dev/null 2>&1; then
       hyprpicker -r -z -q >/dev/null 2>&1 &
       freeze_pid=$!
-      sleep 0.25                      # let the frozen copy appear
+      sleep 0.25
     fi
-    # transparent selection fill, thin cyan border: nothing that could tint the result
-    geom=$(slurp -d -b '#1a1b2680' -c '#0db9d7ff' -s '#00000000' -w 2) || exit 0
-    [ -n "$geom" ] || exit 0
-    sleep 0.15                        # the selection overlay is gone; the frozen copy still hides the live screen
-    grim -g "$geom" "$file" || exit 1
+    geom=$(slurp -d -b '#1a1b2680' -c '#0db9d7ff' -s '#00000000' -w 2)
+    cleanup; freeze_pid=""
+    [ -n "$geom" ] || { rm -f "$full"; exit 0; }
+    # 3. cut the selection out of the first capture
+    if command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; then
+      IM=magick; command -v magick >/dev/null 2>&1 || IM=convert
+      # slurp reports layout pixels; the capture is at the highest monitor scale and starts at the top-left monitor
+      # shellcheck disable=SC2046
+      set -- $(printf '%s' "$geom" | sed 's/[,x ]/ /g')
+      X=$1; Y=$2; W=$3; H=$4
+      info=$(hyprctl monitors -j | jq -r '[ (map(.x) | min), (map(.y) | min), (map(.scale) | max) ] | @tsv')
+      set -- $info
+      MINX=$1; MINY=$2; SC=$3
+      cx=$(awk -v a="$X" -v b="$MINX" -v s="$SC" 'BEGIN{printf "%d", (a-b)*s + 0.5}')
+      cy=$(awk -v a="$Y" -v b="$MINY" -v s="$SC" 'BEGIN{printf "%d", (a-b)*s + 0.5}')
+      cw=$(awk -v a="$W" -v s="$SC" 'BEGIN{printf "%d", a*s + 0.5}')
+      ch=$(awk -v a="$H" -v s="$SC" 'BEGIN{printf "%d", a*s + 0.5}')
+      $IM "$full" -crop "${cw}x${ch}+${cx}+${cy}" +repage "$file" || { rm -f "$full"; exit 1; }
+    else
+      # no ImageMagick: capture the selection directly (the pointer may show on some setups)
+      sleep 0.15
+      grim -g "$geom" "$file" || { rm -f "$full"; exit 1; }
+    fi
+    rm -f "$full"
     ;;
   monitor)
     out=$(hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .name' | head -n1)

@@ -1,7 +1,6 @@
 # id	keys	description	command      (tab separated). Change a shortcut with SUPER + I > Keyboard shortcuts, or edit this file.
 terminal	SUPER + Return	Terminal	sh ~/.config/hypr/scripts/open-default.sh terminal
 launcher	ALT + space	App launcher (not an app? type: run <command>)	sh ~/.config/hypr/scripts/launcher.sh
-windows	ALT + Tab	Switch between open windows	sh ~/.config/hypr/scripts/windows.sh
 files	SUPER + E	File manager	sh ~/.config/hypr/scripts/open-default.sh files
 browser	SUPER + B	Web browser	sh ~/.config/hypr/scripts/open-default.sh browser
 settings	SUPER + I	Settings: default apps, shortcuts, widgets	sh ~/.config/hypr/scripts/settings.sh

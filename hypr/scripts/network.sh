@@ -58,6 +58,64 @@ saved_rows() {   # prints: uuid <TAB> autoconnect <TAB> priority <TAB> name   (W
 }
 saved_menu() {
   while :; do
+    rows="$(saved_rows)"
+    [ -n "$rows" ] || { note "No saved Wi-Fi networks yet."; return 0; }
+    labels="$(printf '%s\n' "$rows" | awk -F'\t' '{ printf "%-10s %s\n", ($2 == "yes" ? "[auto]" : "[manual]"), $4 }')"
+    i="$(printf '%s\n' "$labels" | rofi -dmenu -i -no-custom -format i -p 'Saved' \
+          -mesg 'Pick a network to manage it. [auto] = connects by itself.')" || return 0
+    [ -n "$i" ] || return 0
+    line="$(printf '%s\n' "$rows" | sed -n "$((i + 1))p")"
+    uuid="$(printf '%s' "$line" | cut -f1)"; auto="$(printf '%s' "$line" | cut -f2)"
+    prio="$(printf '%s' "$line" | cut -f3)"; name="$(printf '%s' "$line" | cut -f4)"
+    if [ "$auto" = yes ]; then toggle="Turn autoconnect OFF"; else toggle="Turn autoconnect ON"; fi
+    act="$(printf 'Connect now\n%s\nChange password\nSet priority (now %s)\nForget this network\n' "$toggle" "$prio" \
+          | rofi -dmenu -i -no-custom -p "$name")" || continue
+    case "$act" in
+      "Connect now")
+        if nmcli connection up uuid "$uuid" >/dev/null 2>&1; then note "Connected to $name"
+        else note "Could not connect to $name. If the password changed, use Change password."; fi ;;
+      "Turn autoconnect OFF") nm connection modify uuid "$uuid" connection.autoconnect no && note "$name: autoconnect OFF" ;;
+      "Turn autoconnect ON")  nm connection modify uuid "$uuid" connection.autoconnect yes && note "$name: autoconnect ON" ;;
+      "Change password")
+        pass="$(printf '' | rofi -dmenu -password -p "New password" -mesg "$name")" || continue
+        [ -n "$pass" ] || continue
+        if nm connection modify uuid "$uuid" wifi-sec.psk "$pass"; then
+          if nmcli connection up uuid "$uuid" >/dev/null 2>&1; then note "Password saved, connected to $name"
+          else note "Password saved, but connecting failed. Is the password right?"; fi
+        else note "Could not change the password"; fi ;;
+      "Set priority"*)
+        p="$(printf '' | rofi -dmenu -p "Priority" -mesg "Higher number = preferred when several known networks are in range (now $prio)")" || continue
+        case "$p" in ''|*[!0-9-]*) note "Priority must be a number"; continue ;; esac
+        nm connection modify uuid "$uuid" connection.autoconnect-priority "$p" && note "$name: priority $p" ;;
+      "Forget"*)
+        ok="$(printf 'No, keep it\nYes, forget %s\n' "$name" | rofi -dmenu -i -no-custom -p 'Forget?')" || continue
+        case "$ok" in Yes*) nm connection delete uuid "$uuid" && note "Forgot $name" ;; esac ;;
+    esac
+  done
+}
+
+connect_wifi() {
+  nmcli radio wifi on >/dev/null 2>&1 || true
+  nmcli device wifi rescan >/dev/null 2>&1 || true
+  sleep 1
+  ssids="$(nmcli -t -f SSID device wifi list 2>/dev/null | sed '/^$/d' | sort -u)"
+  [ -n "$ssids" ] || { rofi_msg "No Wi-Fi networks were found nearby."; return 0; }
+  ssid="$(printf '%s\n' "$ssids" | rofi -dmenu -i -p '' -mesg 'Pick a Wi-Fi network')" || return 0
+  [ -n "$ssid" ] || return 0
+  pass="$(printf '' | rofi -dmenu -p "Password for $ssid" -password)" || return 0
+  if [ -n "$pass" ] && nmcli device wifi connect "$ssid" password "$pass" >/dev/null 2>&1; then
+    nm connection modify "$ssid" connection.autoconnect yes connection.autoconnect-priority 10 >/dev/null 2>&1 || true
+    note "Connected to $ssid"
+  elif nmcli device wifi connect "$ssid" >/dev/null 2>&1; then
+    nm connection modify "$ssid" connection.autoconnect yes connection.autoconnect-priority 10 >/dev/null 2>&1 || true
+    note "Connected to $ssid"
+  else
+    rofi_msg "Could not connect to $ssid. Check the password and try again."
+  fi
+}
+
+menu() {
+  while :; do
     pick="$(printf 'Saved networks (connect, forget, password, priority)\nConnect to a new Wi-Fi network\nEnable autoconnect for all saved Wi-Fi\n' \
       | rofi -dmenu -i -no-custom -p '' -mesg 'NetworkManager is the network manager on this system.')" || return 0
     case "$pick" in

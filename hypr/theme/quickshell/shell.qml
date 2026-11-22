@@ -102,8 +102,12 @@ ShellRoot {
     // 5% per mouse-wheel notch (120 units); a trackpad sends many small amounts, so it scrolls smoothly
     function scrollDelta(dy) { return (theme.naturalScroll ? -dy : dy) / 120 * 0.05 }
     // Volume / brightness: wheel up OR two fingers up = more, on every device.
-    // Qt reports "inverted" for a device with natural scrolling (the touchpad), so undoing it gives the physical direction.
-    function controlScrollDelta(dy, inverted) { return (inverted ? -dy : dy) / 120 * 0.05 }
+    // A mouse wheel notch is always a multiple of 120 and keeps its direction. Anything else is a touchpad,
+    // which (natural scrolling) reports the opposite sign, so it is flipped: two fingers up = more.
+    function controlScrollDelta(dy, inverted) {
+        const notch = Math.abs(dy) >= 120 && Math.abs(dy) % 120 === 0
+        return (notch ? dy : -dy) / 120 * 0.05
+    }
 
     // ---- Per-app volume mixer (opened with the small arrow in the volume popup) ----
     // Every app that has an audio stream is listed (playing or paused), one row per app. Apps that are running and can
@@ -562,17 +566,24 @@ ShellRoot {
         id: polkitFallback
         command: ["sh", "-c", "for b in /usr/lib/hyprpolkitagent/hyprpolkitagent /usr/libexec/hyprpolkitagent; do [ -x \"$b\" ] && exec \"$b\"; done; systemctl --user start hyprpolkitagent.service"]
     }
-    QtObject {
-        Component.onCompleted: {
+    // polkit-stock file (Settings > Password dialog) = use the classic hyprpolkitagent dialog instead of the themed one
+    Process {
+        id: polkitMode
+        command: ["sh", "-c", "test -e \"$1/polkit-stock\"", "_", root.stateDir]
+        running: true
+        onExited: (code, st) => {
+            if (code === 0) { polkitFallback.running = true; return }
             const c = Qt.createComponent("PolkitDialog.qml")
             const finish = () => {
-                if (c.status === Component.Ready) c.createObject(root, { theme: root.theme })
+                if (c.status === Component.Ready) { c.createObject(root, { theme: root.theme }); polkitBackup.start() }
                 else if (c.status === Component.Error) { console.warn("PolkitDialog: " + c.errorString()); polkitFallback.running = true }
             }
             if (c.status === Component.Loading) c.statusChanged.connect(finish)
             else finish()
         }
     }
+    // Safety net: if the themed agent could not register, the classic one takes over (a second agent just exits).
+    Timer { id: polkitBackup; interval: 6000; onTriggered: polkitFallback.running = true }
     DesktopClock {
         id: clockWidget
         visible: !root.moveMode && root.widgetEnabled.clock !== false
@@ -603,6 +614,7 @@ ShellRoot {
         onMoveRequested: root.moveMode = true
         MediaOutputWidget { theme: root.theme }
     }
+    Switcher { theme: root.theme }
     WidgetMover {
         visible: root.moveMode
         theme: root.theme
