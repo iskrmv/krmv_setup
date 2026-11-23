@@ -250,6 +250,8 @@ ShellRoot {
                     // so the slider works whichever of them the app's stream accepts.
                     property real pendingVol: -1
                     function sendWp() {
+                        // third path: the PulseAudio sink-input API, which pipewire-pulse applies to every app
+                        Quickshell.execDetached(["sh", Quickshell.env("HOME") + "/.config/hypr/scripts/appvol.sh", modelData.name, String(Math.round(pendingVol * 100))])
                         for (const n of modelData.nodes) Quickshell.execDetached(["wpctl", "set-volume", String(n.id), pendingVol.toFixed(3)])
                         pendingVol = -1
                     }
@@ -266,6 +268,7 @@ ShellRoot {
                             if (n.audio) n.audio.muted = m
                             Quickshell.execDetached(["wpctl", "set-mute", String(n.id), m ? "1" : "0"])
                         }
+                        Quickshell.execDetached(["sh", Quickshell.env("HOME") + "/.config/hypr/scripts/appvol.sh", modelData.name, m ? "mute" : "unmute"])
                         root.setPref(modelData.name, undefined, m)
                     }
 

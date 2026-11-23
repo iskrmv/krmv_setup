@@ -29,7 +29,7 @@ Item {
                           : (s === MprisLoopState.Playlist ? MprisLoopState.Track : MprisLoopState.None)
     }
 
-    // one round button
+    // one button: every button is as tall as the big play button, so the whole row sits on one centre line
     component Btn: Item {
         id: b
         property string glyph: ""
@@ -38,27 +38,39 @@ Item {
         property bool lit: false
         property bool big: false
         signal clicked()
-        implicitWidth: (big ? 46 : 34)
-        implicitHeight: (big ? 46 : 34)
-        Rectangle {
-            anchors.fill: parent
+        implicitWidth: big ? 52 : 38
+        implicitHeight: 52
+        Rectangle {                                   // the visible shape (centered, 36 or 48 px)
+            anchors.centerIn: parent
+            width: b.big ? 48 : 36; height: width
             color: b.big ? (area.containsMouse && b.usable ? Qt.lighter(c.theme.icon, 1.15) : c.theme.icon)
                          : (area.containsMouse && b.usable ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-            visible: b.big || area.containsMouse
-            opacity: b.usable ? 1 : 0.3
+            border.width: b.big ? 1 : 0
+            border.color: Qt.rgba(1, 1, 1, 0.3)
+            opacity: b.usable ? 1 : 0.35
+            Behavior on color { ColorAnimation { duration: 90 } }
+            Text {
+                anchors.fill: parent
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                // the play triangle is heavy on its left side: nudge it right so it looks centered
+                leftPadding: (b.big && b.glyph === "\uf04b") ? 3 : 0
+                text: b.glyph
+                color: b.big ? c.theme.bg : (!b.usable ? c.theme.muted : (b.lit ? c.theme.icon : (c.shadow ? "#ffffff" : c.theme.fg)))
+                style: c.shadow && !b.big ? Text.Raised : Text.Normal; styleColor: "#99000000"
+                font.family: c.theme.font; font.pixelSize: b.big ? c.size + 4 : c.size
+            }
+            Text {
+                visible: b.badge !== ""
+                anchors { right: parent.right; bottom: parent.bottom; rightMargin: 3; bottomMargin: 1 }
+                text: b.badge; color: c.theme.icon; font.bold: true
+                font.family: c.theme.font; font.pixelSize: c.theme.size - 5
+            }
         }
-        Text {
-            anchors.centerIn: parent
-            text: b.glyph
-            color: b.big ? c.theme.bg : (!b.usable ? c.theme.muted : (b.lit ? c.theme.icon : (c.shadow ? "#ffffff" : c.theme.fg)))
-            style: c.shadow && !b.big ? Text.Raised : Text.Normal; styleColor: "#99000000"
-            font.family: c.theme.font; font.pixelSize: b.big ? c.size + 4 : c.size
-        }
-        Text {
-            visible: b.badge !== ""
-            anchors { right: parent.right; top: parent.top; rightMargin: 5; topMargin: 3 }
-            text: b.badge; color: c.theme.icon; font.bold: true
-            font.family: c.theme.font; font.pixelSize: c.theme.size - 5
+        // a lit dot under shuffle / repeat when they are on
+        Rectangle {
+            visible: b.lit && !b.big
+            anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 1 }
+            width: 4; height: 4; color: c.theme.icon
         }
         MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (b.usable) b.clicked() }
     }
@@ -66,7 +78,7 @@ Item {
     Row {
         id: row
         anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 6
+        spacing: 4
 
         Btn {   // shuffle
             visible: c.ok && c.player.shuffleSupported

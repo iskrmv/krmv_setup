@@ -115,6 +115,7 @@ Three rules keep the laziness honest:
 | Pick a color from the screen | `SUPER + SHIFT + P` |
 | Screenshot an area (screen freezes) | `SUPER + SHIFT + S` |
 | Use an animated wallpaper | Copy a video/GIF into `~/.config/hypr/wallpapers/animated`, press `SUPER + W` until it shows |
+| App volume does nothing | Per-app sliders (bar volume popup and the media widget) set the volume through three paths, the last one is `scripts/appvol.sh` (PulseAudio sink inputs). Check by hand: `pactl list sink-inputs short`, then `sh ~/.config/hypr/scripts/appvol.sh firefox 40` |
 | Media controls (bar popup and desktop widget) | Only what the player supports is shown: shuffle and repeat (Spotify, VLC), back / forward 10 s (YouTube, videos, podcasts), play / pause / next / previous, the player's own volume, and a button that brings its window to the front. A YouTube tab simply has no shuffle or repeat |
 | Show net speed / media widget | `SUPER + I` → Desktop widgets |
 | Move the clock, net speed or media widget | `SUPER + SHIFT + W`, drag each one, `Enter` saves, `R` resets all |

@@ -2,6 +2,7 @@
 // and a button that brings the player's window to the front (if it allows that).
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Services.Mpris
 
 RowLayout {
@@ -11,6 +12,23 @@ RowLayout {
     property bool shadow: false
     readonly property bool ok: player !== null && player !== undefined
     spacing: 10
+
+    // The player's own MPRIS volume is set first; the same level is also sent to the app's audio stream
+    // (PulseAudio sink input), because some players ignore the MPRIS value.
+    property real pendingVol: -1
+    function appKey() { return (x.player.desktopEntry && x.player.desktopEntry !== "") ? x.player.desktopEntry : x.player.identity }
+    function setVolume(v) {
+        if (!ok) return
+        try { x.player.volume = v } catch (e) {}
+        pendingVol = v
+        if (!volTimer.running) { sendVolume(); volTimer.start() }
+    }
+    function sendVolume() {
+        if (pendingVol < 0 || !ok) return
+        Quickshell.execDetached(["sh", Quickshell.env("HOME") + "/.config/hypr/scripts/appvol.sh", appKey(), String(Math.round(pendingVol * 100))])
+        pendingVol = -1
+    }
+    Timer { id: volTimer; interval: 80; onTriggered: x.sendVolume() }
 
     Text {
         Layout.fillWidth: true
@@ -35,7 +53,7 @@ RowLayout {
             anchors.verticalCenter: parent.verticalCenter
             theme: x.theme
             value: x.ok ? Math.max(0, Math.min(1, x.player.volume)) : 0
-            onMoved: v => x.player.volume = v
+            onMoved: v => x.setVolume(v)
         }
     }
     Text {
