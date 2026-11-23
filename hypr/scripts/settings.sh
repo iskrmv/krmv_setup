@@ -354,6 +354,19 @@ dns_menu() {
 }
 
 # ------------------------------------------------------------------ main menu
+
+# ---- entry points for the Settings app (settings-api.sh): "settings.sh apps|shortcuts|geo-list|geo-set <app> <true|false>"
+case "${1:-}" in
+  apps)       default_apps_menu; exit 0 ;;
+  shortcuts)  shortcuts_menu; exit 0 ;;
+  geo-list)   geo_rows; exit 0 ;;
+  geo-set)    geo_set "$2" "$3"; exit 0 ;;
+esac
+# Started without arguments (the launcher entry, a custom shortcut ...): open the Settings app. The old rofi menu below
+# is only the fallback when the bar is not running (or when KRMV_OLD_SETTINGS=1 is set).
+if [ -z "${1:-}" ] && [ -z "${KRMV_OLD_SETTINGS:-}" ]; then
+  qs -p "$SHELL_QML" ipc call settings open >/dev/null 2>&1 && exit 0
+fi
 main() {
   while :; do
     if [ -e "$STATE/polkit-stock" ]; then pdmode=CLASSIC; else pdmode=THEMED; fi

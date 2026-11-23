@@ -25,8 +25,8 @@ PanelWindow {
     margins { top: 38 }
     exclusionMode: ExclusionMode.Ignore
     focusable: true
-    implicitWidth: 380
-    implicitHeight: 490
+    implicitWidth: 400
+    implicitHeight: 520
     color: "transparent"
 
     Shortcut { sequence: "Escape"; onActivated: panel.closeRequested() }
@@ -85,42 +85,57 @@ PanelWindow {
         anchors.fill: parent
         color: panel.theme.bg
         border.width: 1
-        border.color: panel.theme.muted
+        border.color: Qt.rgba(1, 1, 1, 0.12)
 
         ColumnLayout {
-            anchors { fill: parent; margins: 16 }
+            anchors { fill: parent; margins: 18 }
             spacing: 14
 
-            // ---- tabs ----
+            // ---- header ----
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 22
-                Repeater {
-                    model: ["Timer", "Alarm", "Stopwatch", "Reminders"]
-                    delegate: Item {
-                        id: tabItem
-                        required property string modelData
-                        required property int index
-                        implicitWidth: tabText.implicitWidth
-                        implicitHeight: 28
-                        Text {
-                            id: tabText
-                            anchors.top: parent.top
-                            text: tabItem.modelData
-                            color: panel.tab === tabItem.index ? panel.theme.icon : panel.theme.dim
-                            font.bold: panel.tab === tabItem.index
-                            font.family: panel.theme.font; font.pixelSize: panel.theme.size + 1
-                        }
-                        Rectangle { anchors { left: parent.left; right: parent.right; bottom: parent.bottom } height: 2; color: panel.theme.icon; visible: panel.tab === tabItem.index }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                panel.tab = tabItem.index; panel.message = ""
-                                                            }
+                ColumnLayout {
+                    spacing: 0
+                    Text { text: "Clock"; color: panel.theme.bright; font.bold: true
+                           font.family: panel.theme.font; font.pixelSize: panel.theme.size + 6 }
+                    Text { text: Qt.formatDateTime(new Date(panel.engine.nowMs), "dddd, d MMMM"); color: panel.theme.dim
+                           font.family: panel.theme.font; font.pixelSize: panel.theme.size - 2 }
+                }
+                Item { Layout.fillWidth: true }
+                Text { text: Qt.formatDateTime(new Date(panel.engine.nowMs), "HH:mm"); color: panel.theme.icon; font.bold: true
+                       font.family: panel.theme.font; font.pixelSize: panel.theme.size + 8 }
+            }
+
+            // ---- tabs (segmented) ----
+            Rectangle {
+                Layout.fillWidth: true; Layout.preferredHeight: 38
+                color: Qt.rgba(0, 0, 0, 0.25); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
+                RowLayout {
+                    anchors { fill: parent; margins: 2 }
+                    spacing: 2
+                    Repeater {
+                        model: [ { n: "Timer", i: "\uf252" }, { n: "Alarm", i: "\uf0f3" }, { n: "Stopwatch", i: "\uf2f2" }, { n: "Reminders", i: "\uf073" } ]
+                        delegate: Rectangle {
+                            id: tabItem
+                            required property var modelData
+                            required property int index
+                            readonly property bool sel: panel.tab === index
+                            Layout.fillWidth: true; Layout.fillHeight: true
+                            color: sel ? panel.theme.icon : (tabArea.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
+                            Behavior on color { ColorAnimation { duration: 90 } }
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Text { text: tabItem.modelData.i; color: tabItem.sel ? panel.theme.bg : panel.theme.dim
+                                       font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1 }
+                                Text { text: tabItem.modelData.n; color: tabItem.sel ? panel.theme.bg : panel.theme.fg; font.bold: tabItem.sel
+                                       font.family: panel.theme.font; font.pixelSize: panel.theme.size - 2 }
+                            }
+                            MouseArea { id: tabArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: { panel.tab = tabItem.index; panel.message = "" } }
                         }
                     }
                 }
-                Item { Layout.fillWidth: true }
             }
 
             // ================= TIMER =================
@@ -129,27 +144,46 @@ PanelWindow {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 spacing: 14
 
-                Text {
+                Item {   // progress ring with the time inside
                     Layout.alignment: Qt.AlignHCenter
-                    text: L.fmtDuration(panel.engine.timerState === "idle" ? 0 : panel.engine.timerLeft)
-                    color: panel.engine.timerState === "running" ? panel.theme.icon : panel.theme.fg
-                    font.bold: true
-                    font.family: panel.theme.font; font.pixelSize: 64
-                }
-                Item {   // progress
-                    Layout.fillWidth: true; Layout.preferredHeight: 6
-                    Rectangle { anchors.fill: parent; color: panel.theme.muted }
-                    Rectangle {
-                        height: parent.height
-                        width: panel.engine.timerState === "idle" || panel.engine.timerTotal <= 0 ? 0 : parent.width * Math.min(1, panel.engine.timerLeft / panel.engine.timerTotal)
-                        color: panel.theme.icon
+                    Layout.preferredWidth: 200; Layout.preferredHeight: 200
+                    readonly property real frac: (panel.engine.timerState === "idle" || panel.engine.timerTotal <= 0) ? 0 : Math.min(1, panel.engine.timerLeft / panel.engine.timerTotal)
+                    onFracChanged: ring.requestPaint()
+                    Canvas {
+                        id: ring
+                        anchors.fill: parent
+                        onPaint: {
+                            const ctx = getContext("2d")
+                            ctx.reset()
+                            const c = width / 2, r = c - 8
+                            ctx.lineWidth = 6
+                            ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.09)
+                            ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.stroke()
+                            const f = parent.frac
+                            if (f > 0) {
+                                ctx.strokeStyle = panel.theme.icon
+                                ctx.beginPath(); ctx.arc(c, c, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f); ctx.stroke()
+                            }
+                        }
+                        Component.onCompleted: requestPaint()
                     }
-                }
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: panel.engine.timerState === "running" ? "Running" : (panel.engine.timerState === "paused" ? "Paused" : "Pick a time to start")
-                    color: panel.theme.dim
-                    font.family: panel.theme.font; font.pixelSize: panel.theme.size
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: L.fmtDuration(panel.engine.timerState === "idle" ? 0 : panel.engine.timerLeft)
+                            color: panel.engine.timerState === "running" ? panel.theme.icon : panel.theme.bright
+                            font.bold: true
+                            font.family: panel.theme.font; font.pixelSize: 40
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: panel.engine.timerState === "running" ? "Running" : (panel.engine.timerState === "paused" ? "Paused" : "Pick a time")
+                            color: panel.theme.dim
+                            font.family: panel.theme.font; font.pixelSize: panel.theme.size - 2
+                        }
+                    }
                 }
 
                 // idle: presets + custom time
@@ -157,12 +191,30 @@ PanelWindow {
                     visible: panel.engine.timerState === "idle"
                     Layout.fillWidth: true
                     spacing: 12
-                    Flow {
+                    GridLayout {
                         Layout.fillWidth: true
-                        spacing: 8
+                        columns: 3; columnSpacing: 8; rowSpacing: 8
                         Repeater {
-                            model: [ { t: "1 min", s: 60 }, { t: "5 min", s: 300 }, { t: "10 min", s: 600 }, { t: "15 min", s: 900 }, { t: "30 min", s: 1800 }, { t: "1 hour", s: 3600 } ]
-                            delegate: PanelButton { required property var modelData; theme: panel.theme; text: modelData.t; onClicked: panel.engine.startTimer(modelData.s) }
+                            model: [ { v: "1", u: "minute", s: 60 }, { v: "5", u: "minutes", s: 300 }, { v: "10", u: "minutes", s: 600 },
+                                     { v: "15", u: "minutes", s: 900 }, { v: "30", u: "minutes", s: 1800 }, { v: "1", u: "hour", s: 3600 } ]
+                            delegate: Rectangle {
+                                id: tile
+                                required property var modelData
+                                Layout.fillWidth: true; Layout.preferredHeight: 54
+                                color: tileArea.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.04)
+                                border.width: 1; border.color: tileArea.containsMouse ? panel.theme.icon : Qt.rgba(1, 1, 1, 0.1)
+                                Behavior on color { ColorAnimation { duration: 90 } }
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 0
+                                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: tile.modelData.v; color: panel.theme.bright; font.bold: true
+                                           font.family: panel.theme.font; font.pixelSize: panel.theme.size + 5 }
+                                    Text { anchors.horizontalCenter: parent.horizontalCenter; text: tile.modelData.u; color: panel.theme.dim
+                                           font.family: panel.theme.font; font.pixelSize: panel.theme.size - 4 }
+                                }
+                                MouseArea { id: tileArea; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: panel.engine.startTimer(tile.modelData.s) }
+                            }
                         }
                     }
                     RowLayout {
@@ -170,7 +222,7 @@ PanelWindow {
                         spacing: 8
                         Rectangle {
                             Layout.fillWidth: true; Layout.preferredHeight: 32
-                            color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                            color: Qt.rgba(0, 0, 0, 0.25); border.width: 1
                             border.color: timerInput.activeFocus ? panel.theme.icon : panel.theme.muted
                             TextInput {
                                 id: timerInput
@@ -184,7 +236,7 @@ PanelWindow {
                                        font.family: panel.theme.font; font.pixelSize: panel.theme.size - 1 }
                             }
                         }
-                        PanelButton { theme: panel.theme; text: "Start"; accent: true; onClicked: panel.startCustom() }
+                        UiButton { theme: panel.theme; text: "Start"; kind: "primary"; onClicked: panel.startCustom() }
                     }
                 }
                 // running / paused controls
@@ -192,12 +244,12 @@ PanelWindow {
                     visible: panel.engine.timerState !== "idle"
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 12
-                    PanelButton {
-                        theme: panel.theme; accent: true
+                    UiButton {
+                        theme: panel.theme; kind: "primary"
                         text: panel.engine.timerState === "running" ? "Pause" : "Resume"
                         onClicked: panel.engine.timerState === "running" ? panel.engine.pauseTimer() : panel.engine.resumeTimer()
                     }
-                    PanelButton { theme: panel.theme; text: "Reset"; onClicked: panel.engine.resetTimer() }
+                    UiButton { theme: panel.theme; text: "Reset"; onClicked: panel.engine.resetTimer() }
                 }
                 Item { Layout.fillHeight: true }
             }
@@ -220,8 +272,8 @@ PanelWindow {
                     delegate: Rectangle {
                         id: aRow
                         required property var modelData
-                        width: ListView.view.width; height: 50
-                        color: "transparent"; border.width: 1; border.color: panel.theme.muted
+                        width: ListView.view.width; height: 56
+                        color: Qt.rgba(1, 1, 1, 0.035); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.08)
                         RowLayout {
                             anchors { fill: parent; leftMargin: 12; rightMargin: 10 }
                             spacing: 12
@@ -229,7 +281,7 @@ PanelWindow {
                                 text: aRow.modelData.time
                                 color: aRow.modelData.enabled ? panel.theme.fg : panel.theme.dim
                                 font.bold: true
-                                font.family: panel.theme.font; font.pixelSize: panel.theme.size + 6
+                                font.family: panel.theme.font; font.pixelSize: panel.theme.size + 9
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 0
@@ -254,7 +306,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 8
                     Rectangle {
                         Layout.preferredWidth: 84; Layout.preferredHeight: 32
-                        color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                        color: Qt.rgba(0, 0, 0, 0.25); border.width: 1
                         border.color: alarmTime.activeFocus ? panel.theme.icon : panel.theme.muted
                         TextInput {
                             id: alarmTime
@@ -269,7 +321,7 @@ PanelWindow {
                     }
                     Rectangle {
                         Layout.fillWidth: true; Layout.preferredHeight: 32
-                        color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                        color: Qt.rgba(0, 0, 0, 0.25); border.width: 1
                         border.color: alarmLabel.activeFocus ? panel.theme.icon : panel.theme.muted
                         TextInput {
                             id: alarmLabel
@@ -301,7 +353,7 @@ PanelWindow {
                         }
                     }
                     Item { Layout.fillWidth: true }
-                    PanelButton { theme: panel.theme; text: "Add alarm"; accent: true; onClicked: panel.addAlarm() }
+                    UiButton { theme: panel.theme; text: "Add alarm"; kind: "primary"; onClicked: panel.addAlarm() }
                 }
                 Text {
                     visible: panel.addDays.length === 0
@@ -322,13 +374,13 @@ PanelWindow {
                     text: L.fmtStopwatch(panel.engine.swElapsed)
                     color: panel.engine.swRunning ? panel.theme.icon : panel.theme.fg
                     font.bold: true
-                    font.family: panel.theme.font; font.pixelSize: 56
+                    font.family: panel.theme.font; font.pixelSize: 60
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 12
-                    PanelButton { theme: panel.theme; accent: true; text: panel.engine.swRunning ? "Stop" : (panel.engine.swElapsed > 0 ? "Resume" : "Start"); onClicked: panel.engine.swToggle() }
-                    PanelButton { theme: panel.theme; text: "Reset"; active: panel.engine.swElapsed > 0 && !panel.engine.swRunning; onClicked: panel.engine.swReset() }
+                    UiButton { theme: panel.theme; kind: "primary"; text: panel.engine.swRunning ? "Stop" : (panel.engine.swElapsed > 0 ? "Resume" : "Start"); onClicked: panel.engine.swToggle() }
+                    UiButton { theme: panel.theme; text: "Reset"; active: panel.engine.swElapsed > 0 && !panel.engine.swRunning; onClicked: panel.engine.swReset() }
                 }
                 Item { Layout.fillHeight: true }
             }
@@ -341,7 +393,7 @@ PanelWindow {
 
                 RowLayout {
                     Layout.fillWidth: true; spacing: 8
-                    PanelButton { theme: panel.theme; text: "<"; onClicked: panel.shiftNoteMonth(-1) }
+                    UiButton { theme: panel.theme; text: "<"; onClicked: panel.shiftNoteMonth(-1) }
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
@@ -349,7 +401,7 @@ PanelWindow {
                         color: panel.theme.icon; font.bold: true
                         font.family: panel.theme.font; font.pixelSize: panel.theme.size
                     }
-                    PanelButton { theme: panel.theme; text: ">"; onClicked: panel.shiftNoteMonth(1) }
+                    UiButton { theme: panel.theme; text: ">"; onClicked: panel.shiftNoteMonth(1) }
                 }
 
                 Grid {
@@ -446,7 +498,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 8
                     Rectangle {
                         Layout.preferredWidth: 72; Layout.preferredHeight: 32
-                        color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                        color: Qt.rgba(0, 0, 0, 0.25); border.width: 1
                         border.color: timeInput.activeFocus ? panel.theme.icon : panel.theme.muted
                         TextInput {
                             id: timeInput
@@ -466,7 +518,7 @@ PanelWindow {
                     }
                     Rectangle {
                         Layout.fillWidth: true; Layout.preferredHeight: 32
-                        color: Qt.rgba(1, 1, 1, 0.06); border.width: 1
+                        color: Qt.rgba(0, 0, 0, 0.25); border.width: 1
                         border.color: reminderInput.activeFocus ? panel.theme.icon : panel.theme.muted
                         TextInput {
                             id: reminderInput
@@ -483,7 +535,7 @@ PanelWindow {
                             }
                         }
                     }
-                    PanelButton { theme: panel.theme; text: "Add"; accent: true; onClicked: panel.addReminder() }
+                    UiButton { theme: panel.theme; text: "Add"; kind: "primary"; onClicked: panel.addReminder() }
                 }
                 Item { Layout.fillHeight: true }
             }

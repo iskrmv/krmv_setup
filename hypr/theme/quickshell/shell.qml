@@ -636,6 +636,23 @@ ShellRoot {
         MediaOutputWidget { theme: root.theme }
     }
     Switcher { theme: root.theme }
+
+    // The Settings app (SUPER + I): sidebar with pages, backend is scripts/settings-api.sh
+    property bool settingsOpen: false
+    SettingsApp {
+        visible: root.settingsOpen
+        theme: root.theme
+        widgets: root.widgetList
+        onCloseRequested: root.settingsOpen = false
+        onWidgetToggled: (id, on) => root.setWidgetEnabled(id, on)
+        onMoveWidgetsRequested: { root.settingsOpen = false; root.moveMode = true }
+    }
+    IpcHandler {
+        target: "settings"
+        function open(): void { root.settingsOpen = true }
+        function close(): void { root.settingsOpen = false }
+        function toggle(): void { root.settingsOpen = !root.settingsOpen }
+    }
     WidgetMover {
         visible: root.moveMode
         theme: root.theme

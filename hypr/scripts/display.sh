@@ -186,5 +186,8 @@ main_menu() {
 
 case "${1:-menu}" in
   menu) main_menu ;;
+  get)  current_record "$2" ;;                 # for the Settings app: the saved/live line of one screen
+  live) apply_record "$2" ;;                   # apply a line without saving it
+  save) save_record "$2" ;;                    # keep a line for the next login
   *) echo "Usage: $0 [menu]"; exit 1 ;;
 esac

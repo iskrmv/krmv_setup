@@ -76,5 +76,3 @@ export EDITOR=nvim VISUAL=nvim
 # zsh-syntax-highlighting must be loaded LAST
 [[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
   source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-#idk

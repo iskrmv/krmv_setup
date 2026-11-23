@@ -3,7 +3,7 @@ terminal	SUPER + Return	Terminal	sh ~/.config/hypr/scripts/open-default.sh termi
 launcher	ALT + space	App launcher (not an app? type: run <command>)	sh ~/.config/hypr/scripts/launcher.sh
 files	SUPER + E	File manager	sh ~/.config/hypr/scripts/open-default.sh files
 browser	SUPER + B	Web browser	sh ~/.config/hypr/scripts/open-default.sh browser
-settings	SUPER + I	Settings: default apps, shortcuts, widgets	sh ~/.config/hypr/scripts/settings.sh
+settings	SUPER + I	Settings	qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call settings toggle
 clockapp	SUPER + C	Clock: timer, alarm, stopwatch	qs -p ~/.config/hypr/theme/quickshell/shell.qml ipc call widgets clock
 clipboard	SUPER + V	Clipboard history	sh ~/.config/hypr/scripts/clipboard.sh
 emoji	SUPER + period	Emoji picker	sh ~/.config/hypr/scripts/emoji.sh

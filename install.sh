@@ -210,7 +210,7 @@ if command -v xdg-mime >/dev/null 2>&1; then
 fi
 
 # "Settings" and "Clock" show up in the app launcher (type settings, clock, timer or alarm in rofi)
-printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Settings' 'Comment=Default apps, keyboard shortcuts, widgets, night mode' \
+printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=Settings' 'Comment=Display, network, sound, input, widgets, privacy and more' \
   "Exec=sh $CFG/hypr/scripts/settings.sh" 'Icon=preferences-system' 'Terminal=false' 'Categories=Settings;' \
   'Keywords=settings;preferences;default apps;shortcuts;keyboard;widgets;night mode;' \
   > "$HOME/.local/share/applications/krmv-settings.desktop"
