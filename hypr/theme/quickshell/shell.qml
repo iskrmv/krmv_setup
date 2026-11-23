@@ -1,5 +1,5 @@
 // ~/.config/hypr/theme/quickshell/shell.qml
-// Other files: Chip, Slider, RamIcon, Clock, Toggle, TrayMenu, NetPanel, BtPanel, PowerMenu, Osd, MediaWidget, MarqueeText, ClockFace, DesktopClock, WidgetMover, ClockEngine, ClockPanel, AlarmRing, PanelButton, Notifications, NotificationCard, NetSpeedWidget, MediaOutputWidget (.qml) - must live in this same folder
+// Other files: Chip, Slider, RamIcon, Clock, Toggle, TrayMenu, NetPanel, BtPanel, PowerMenu, Osd, MediaWidget, MarqueeText, ClockFace, DesktopClock, WidgetMover, ClockEngine, ClockPanel, AlarmRing, PanelButton, Notifications, NotificationCard, NetSpeedWidget, MediaOutputWidget, MediaControls, MediaExtras (.qml) - must live in this same folder
 import QtQuick
 import QtQuick.Layouts
 import Quickshell

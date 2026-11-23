@@ -50,7 +50,7 @@ Item {
     }
 
     implicitWidth: 320
-    implicitHeight: 256
+    implicitHeight: 300
 
     Rectangle {
         anchors.fill: parent
@@ -143,27 +143,17 @@ Item {
                 }
             }
 
-            RowLayout {
+            MediaControls {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 26
-                Text {
-                    text: "\uf048"
-                    color: (widget.active && widget.player.canGoPrevious) ? widget.theme.icon : widget.theme.muted
-                    style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size + 3
-                    MouseArea { anchors { fill: parent; margins: -6 } onClicked: widget.previousTrack() }
-                }
-                Text {
-                    text: widget.active && widget.player.isPlaying ? "\uf04c" : "\uf04b"
-                    color: (widget.active && widget.player.canTogglePlaying) ? widget.theme.icon : widget.theme.muted
-                    style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size + 8
-                    MouseArea { anchors { fill: parent; margins: -6 } onClicked: widget.togglePlay() }
-                }
-                Text {
-                    text: "\uf051"
-                    color: (widget.active && widget.player.canGoNext) ? widget.theme.icon : widget.theme.muted
-                    style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size + 3
-                    MouseArea { anchors { fill: parent; margins: -6 } onClicked: widget.nextTrack() }
-                }
+                theme: widget.theme
+                player: widget.active ? widget.player : null
+                shadow: true
+            }
+            MediaExtras {
+                Layout.fillWidth: true
+                theme: widget.theme
+                player: widget.active ? widget.player : null
+                shadow: true
             }
         }
     }

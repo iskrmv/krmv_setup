@@ -21,6 +21,7 @@ PanelWindow {
     implicitHeight: Math.max(1, holder.childrenRect.height)
     color: "transparent"
 
-    Item { id: holder; anchors.fill: parent }
+    // the "double-click to move" area is BELOW the widget, so buttons inside the widget get their clicks
     MouseArea { anchors.fill: parent; onDoubleClicked: win.moveRequested() }
+    Item { id: holder; anchors.fill: parent }
 }

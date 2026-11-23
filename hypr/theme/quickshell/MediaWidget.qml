@@ -219,13 +219,6 @@ Item {
                             color: media.theme.dim
                             font.family: media.theme.font; font.pixelSize: media.theme.size - 2
                         }
-                        Text {
-                            Layout.fillWidth: true
-                            text: media.active ? media.player.identity : ""
-                            elide: Text.ElideRight
-                            color: media.theme.dim
-                            font.family: media.theme.font; font.pixelSize: media.theme.size - 3
-                        }
                     }
                 }
 
@@ -255,52 +248,16 @@ Item {
                     }
                 }
 
-                // ---- controls: back, play / pause, next, repeat ----
-                RowLayout {
+                // ---- controls: only what this player supports ----
+                MediaControls {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 30
-
-                    Text {
-                        text: "\uf048"
-                        color: (media.active && media.player.canGoPrevious) ? (backArea.containsMouse ? media.theme.fg : media.theme.icon) : media.theme.muted
-                        font.family: media.theme.font; font.pixelSize: media.theme.size + 6
-                        MouseArea { id: backArea; anchors { fill: parent; margins: -6 } hoverEnabled: true
-                                    onClicked: if (media.active && media.player.canGoPrevious) media.player.previous() }
-                    }
-                    Text {
-                        text: media.active && media.player.isPlaying ? "\uf04c" : "\uf04b"
-                        color: (media.active && media.player.canTogglePlaying) ? (playArea.containsMouse ? media.theme.fg : media.theme.icon) : media.theme.muted
-                        font.family: media.theme.font; font.pixelSize: media.theme.size + 10
-                        MouseArea { id: playArea; anchors { fill: parent; margins: -6 } hoverEnabled: true
-                                    onClicked: if (media.active && media.player.canTogglePlaying) media.player.togglePlaying() }
-                    }
-                    Text {
-                        text: "\uf051"
-                        color: (media.active && media.player.canGoNext) ? (nextArea.containsMouse ? media.theme.fg : media.theme.icon) : media.theme.muted
-                        font.family: media.theme.font; font.pixelSize: media.theme.size + 6
-                        MouseArea { id: nextArea; anchors { fill: parent; margins: -6 } hoverEnabled: true
-                                    onClicked: if (media.active && media.player.canGoNext) media.player.next() }
-                    }
-                    Item {   // repeat: dim = off, lit = playlist, lit with a "1" = one track
-                        readonly property bool supported: media.active && media.player.loopSupported
-                        readonly property bool lit: supported && media.player.loopState !== MprisLoopState.None
-                        implicitWidth: repeatGlyph.implicitWidth + 8
-                        implicitHeight: repeatGlyph.implicitHeight
-                        Text {
-                            id: repeatGlyph
-                            text: "\uf01e"
-                            color: parent.supported ? (parent.lit ? media.theme.icon : media.theme.dim) : media.theme.muted
-                            font.family: media.theme.font; font.pixelSize: media.theme.size + 4
-                        }
-                        Text {
-                            visible: parent.supported && media.player.loopState === MprisLoopState.Track
-                            anchors { right: parent.right; top: parent.top }
-                            text: "1"
-                            color: media.theme.icon; font.bold: true
-                            font.family: media.theme.font; font.pixelSize: media.theme.size - 4
-                        }
-                        MouseArea { anchors { fill: parent; margins: -6 } onClicked: media.cycleLoop() }
-                    }
+                    theme: media.theme
+                    player: media.active ? media.player : null
+                }
+                MediaExtras {
+                    Layout.fillWidth: true
+                    theme: media.theme
+                    player: media.active ? media.player : null
                 }
             }
         }
