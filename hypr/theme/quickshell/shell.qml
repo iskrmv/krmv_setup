@@ -575,11 +575,32 @@ ShellRoot {
             if (code === 0) { polkitFallback.running = true; return }
             const c = Qt.createComponent("PolkitDialog.qml")
             const finish = () => {
-                if (c.status === Component.Ready) { c.createObject(root, { theme: root.theme }); polkitBackup.start() }
+                if (c.status === Component.Ready) { root.polkitObj = c.createObject(root, { theme: root.theme }); polkitBackup.start() }
                 else if (c.status === Component.Error) { console.warn("PolkitDialog: " + c.errorString()); polkitFallback.running = true }
             }
             if (c.status === Component.Loading) c.statusChanged.connect(finish)
             else finish()
+        }
+    }
+    // Live switching (Settings > Password dialog): the classic agent must be gone before the themed one can register.
+    property var polkitObj: null
+    Process { id: polkitStopStock; command: ["sh", "-c", "systemctl --user stop hyprpolkitagent.service 2>/dev/null; pkill -x hyprpolkitagent 2>/dev/null; true"]
+        onExited: polkitStart.start() }
+    Timer { id: polkitStart; interval: 700
+        onTriggered: {
+            if (root.polkitObj) return
+            const c = Qt.createComponent("PolkitDialog.qml")
+            if (c.status === Component.Ready) root.polkitObj = c.createObject(root, { theme: root.theme })
+            else { console.warn("PolkitDialog: " + c.errorString()); polkitFallback.running = true }
+        }
+    }
+    IpcHandler {
+        target: "polkit"
+        function themed(): void { polkitBackup.stop(); polkitStopStock.running = true }
+        function classic(): void {
+            if (root.polkitObj) { root.polkitObj.destroy(); root.polkitObj = null }
+            polkitBackup.stop()
+            polkitFallback.running = true
         }
     }
     // Safety net: if the themed agent could not register, the classic one takes over (a second agent just exits).

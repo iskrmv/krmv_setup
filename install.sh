@@ -55,7 +55,7 @@ if [ -z "${SKIP_PACKAGES:-}" ]; then
     wl-clipboard cliphist grim slurp libnotify jq yazi fd ripgrep fzf poppler wev pacman-contrib ttf-poppins
     hyprpicker btop
     # media keys, camera, XWayland + Qt/GTK Wayland support (root GUI apps like Ventoy and PINCE need XWayland and xhost)
-    playerctl snapshot imagemagick alsa-utils geoclue xorg-xwayland xorg-xhost qt5-wayland qt6-wayland
+    playerctl snapshot imagemagick gamescope alsa-utils geoclue xorg-xwayland xorg-xhost qt5-wayland qt6-wayland
     xcb-util-cursor xcb-util-image xcb-util-keysyms xcb-util-renderutil xcb-util-wm   # Qt's X11 plugin needs these (PINCE, Ventoy GUI)
     # neovim (for LazyVim): editor, tools and language-server helpers
     neovim lazygit tree-sitter-cli nodejs npm unzip
@@ -160,6 +160,7 @@ rm -f "$CFG/hypr/conf/mice.lua" "$CFG/hypr/scripts/mouse-scroll.sh"   # leftover
 
 # A real command, not a shell alias: the rofi launcher uses non-interactive shells where aliases do not exist.
 sudo install -Dm755 "$HERE/hypr/scripts/sudogui.sh" /usr/local/bin/sudogui
+sudo install -Dm755 "$HERE/hypr/scripts/krmv-stretch.sh" /usr/local/bin/krmv-stretch   # stretched resolution for games (Steam launch option: krmv-stretch %command%)
 sudo install -Dm755 "$HERE/hypr/scripts/run-cmd.sh" /usr/local/bin/run-cmd      # the rofi launcher runs typed commands through it
 # "rofi" wrapper: fixes the scroll direction inside rofi for touchpad AND mouse (calls the real /usr/bin/rofi)
 sudo install -Dm755 "$HERE/hypr/scripts/rofi-wrap.sh" /usr/local/bin/rofi

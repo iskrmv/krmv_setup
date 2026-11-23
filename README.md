@@ -54,7 +54,7 @@ Three rules keep the laziness honest:
 | **On-screen display** | Volume and brightness changes (Fn keys, scroll, sliders) show a small level indicator at the bottom center. It shows "Muted" when muted |
 | **Media** | Any player that speaks MPRIS (Spotify, VLC, mpv, YouTube / Netflix / music in Chrome or Firefox): back / play-pause / next, the title and the time between the launcher and the clock. Hover for the full info and a seek slider |
 | **Volume mixer** | Hover the volume icon: master slider; click the small arrow (bottom right) for one slider and mute per app. Every app with an audio stream is listed (Steam, Telegram, Discord, browsers...). Running apps that are silent at the moment are listed too, and their slider works: the volume is remembered and applied when the app starts making sound |
-| **Settings** | `SUPER + I` (or type "settings" in the command launcher) opens one rofi hub: **default apps** (browser, files, terminal, editor, video, music, images, PDF, camera + a "More" mode for exact file types), **keyboard shortcuts**, **desktop widgets**, **DNS (change / turn off)**, **location permissions**, **audio** and night mode. Everyone picks their own apps and keys |
+| **Settings** | `SUPER + I` (or type "settings" in the command launcher) opens one rofi hub: **default apps** (browser, files, terminal, editor, video, music, images, PDF, camera + a "More" mode for exact file types), **keyboard shortcuts**, **desktop widgets**, **display (resolution, scale, rotation, position, mirroring)**, **DNS (change / turn off)**, **location permissions**, **audio** and night mode. Everyone picks their own apps and keys |
 | **Default apps** | `SUPER + E` opens your default file manager (yazi by default), `SUPER + B` your default browser, `SUPER + Return` your default terminal |
 | **Info boxes** | Volume and brightness, the media keys (play / pause / next / previous) and the touchpad key show a small box at the bottom center, like Windows. The media box appears only for the keys, not when you click inside a player |
 | **Clock app** | Timer, alarms (with days and labels) and a stopwatch. Click the clock in the bar or press `SUPER + C`. An alarm or a finished timer rings with a sound and a window (Enter dismisses, S snoozes 5 minutes). Alarms and the running timer are remembered after a restart |
@@ -102,6 +102,11 @@ Three rules keep the laziness honest:
 | Run a command-line tool | `ALT + SPACE`, press `Tab` for the command list (or type `run btop`), Enter |
 | Switch between open windows | Hold `ALT`, tap `TAB` for the next one (`SHIFT + TAB` goes back), let go of `ALT` to switch. A quick tap = previous window |
 | Go back to the classic password dialog | `SUPER + I` → Password dialog (themed / classic) |
+| Change resolution, scale, rotation, screen position | `SUPER + I` → Display (12 seconds to confirm, otherwise it goes back) |
+| Play 4:3 stretched on a 16:9 screen (CS2 and others) | Steam → game → Properties → Launch options: `krmv-stretch %command%` (once). Then `SUPER + I` → Display → Stretched resolution to switch it ON/OFF and pick the size (1440x1080, ...). Hyprland has no GPU stretch of its own, so this uses `gamescope -S stretch` |
+| Stretch only ONE game / give one game its own size | Put the launch option on that game only. Own size: `KRMV_STRETCH=1280x960 krmv-stretch %command%`; never stretch it: `KRMV_STRETCH=off krmv-stretch %command%` |
+| Mouse feels odd when I flick it fast | `SUPER + I` → Mouse for games (flat profile, no acceleration; the touchpad is not touched) |
+| Use a resolution that is not in the list | `SUPER + I` → Display → Resolution and refresh rate → Custom resolution... |
 | Change or turn off DNS | `SUPER + I` → DNS |
 | Download torrents in the terminal | `ALT + SPACE`, `run tork` |
 | See every shortcut | `SUPER + /` |

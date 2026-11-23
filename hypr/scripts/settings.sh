@@ -356,18 +356,28 @@ dns_menu() {
 # ------------------------------------------------------------------ main menu
 main() {
   while :; do
-    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nNetwork (Wi-Fi autoconnect)\nDNS (change or turn off)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nPassword dialog (themed / classic)\nNight mode (on / off)\n' | menu "Settings")" || exit 0
+    if [ -e "$STATE/polkit-stock" ]; then pdmode=CLASSIC; else pdmode=THEMED; fi
+    pick="$(printf 'Default apps\nKeyboard shortcuts\nDesktop widgets (move, net speed, media output)\nDisplay (resolution, scale, stretch, position)\nNetwork (Wi-Fi autoconnect)\nDNS (change or turn off)\nLocation (geolocation permissions)\nAudio (outputs and laptop speakers)\nMouse for games: %s (flat, no acceleration)\nPassword dialog: %s (click to switch)\nNight mode (on / off)\n' "$(sh "$CFG/scripts/mouse.sh" status)" "$pdmode" | menu "Settings")" || exit 0
     case "$pick" in
       "Default apps") default_apps_menu ;;
       "Keyboard shortcuts") shortcuts_menu ;;
       "Desktop widgets"*) widgets_menu ;;
+      "Display"*) sh "$CFG/scripts/display.sh" menu ;;
       "Network"*) network_menu ;;
       "DNS"*) dns_menu ;;
       "Location"*) location_menu ;;
       "Audio"*) audio_menu ;;
+      "Mouse for games"*) sh "$CFG/scripts/mouse.sh" toggle ;;
       "Password dialog"*)
-        if [ -e "$STATE/polkit-stock" ]; then rm -f "$STATE/polkit-stock"; note "Themed password dialog ON. Log out and in (or restart the bar) to apply."
-        else mkdir -p "$STATE"; : > "$STATE/polkit-stock"; note "Classic password dialog ON. Log out and in (or restart the bar) to apply."; fi ;;
+        if [ -e "$STATE/polkit-stock" ]; then
+          rm -f "$STATE/polkit-stock"
+          if qs -p "$SHELL_QML" ipc call polkit themed >/dev/null 2>&1; then note "Password dialog changed to: THEMED (the Tokyo Night one)"
+          else note "Password dialog changed to: THEMED. Log out and in to apply."; fi
+        else
+          mkdir -p "$STATE"; : > "$STATE/polkit-stock"
+          if qs -p "$SHELL_QML" ipc call polkit classic >/dev/null 2>&1; then note "Password dialog changed to: CLASSIC (hyprpolkitagent)"
+          else note "Password dialog changed to: CLASSIC. Log out and in to apply."; fi
+        fi ;;
       "Night mode"*) sh "$CFG/scripts/nightmode.sh" toggle ;;
     esac
   done
