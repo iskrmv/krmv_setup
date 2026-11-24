@@ -29,7 +29,8 @@ Item {
                           : (s === MprisLoopState.Playlist ? MprisLoopState.Track : MprisLoopState.None)
     }
 
-    // one button: every button is as tall as the big play button, so the whole row sits on one centre line
+    // One button family: plain white icons that light up on hover. Play / pause is the same, only bigger:
+    // no fill, no outline, so the row reads as one piece.
     component Btn: Item {
         id: b
         property string glyph: ""
@@ -38,26 +39,25 @@ Item {
         property bool lit: false
         property bool big: false
         signal clicked()
-        implicitWidth: big ? 52 : 38
-        implicitHeight: 52
-        Rectangle {                                   // the visible shape (centered, 36 or 48 px)
+        implicitWidth: big ? 54 : 40
+        implicitHeight: 54
+        Rectangle {
+            id: shape
             anchors.centerIn: parent
-            width: b.big ? 48 : 36; height: width
-            color: b.big ? (area.containsMouse && b.usable ? Qt.lighter(c.theme.icon, 1.15) : c.theme.icon)
-                         : (area.containsMouse && b.usable ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
-            border.width: b.big ? 1 : 0
-            border.color: Qt.rgba(1, 1, 1, 0.3)
+            width: b.big ? 50 : 38; height: width
+            color: area.containsMouse && b.usable ? Qt.rgba(1, 1, 1, 0.12) : "transparent"    // the same hover for every button
             opacity: b.usable ? 1 : 0.35
-            Behavior on color { ColorAnimation { duration: 90 } }
+            scale: area.pressed ? 0.94 : 1
+            Behavior on color { ColorAnimation { duration: 100 } }
+            Behavior on scale { NumberAnimation { duration: 70 } }
             Text {
-                anchors.fill: parent
-                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-                // the play triangle is heavy on its left side: nudge it right so it looks centered
-                leftPadding: (b.big && b.glyph === "\uf04b") ? 3 : 0
+                anchors.centerIn: parent
+                // the play triangle is heavy on its left: nudge it right so it looks centered
+                anchors.horizontalCenterOffset: (b.big && b.glyph === "\uf04b") ? 2 : 0
                 text: b.glyph
-                color: b.big ? c.theme.bg : (!b.usable ? c.theme.muted : (b.lit ? c.theme.icon : (c.shadow ? "#ffffff" : c.theme.fg)))
-                style: c.shadow && !b.big ? Text.Raised : Text.Normal; styleColor: "#99000000"
-                font.family: c.theme.font; font.pixelSize: b.big ? c.size + 4 : c.size
+                color: !b.usable ? c.theme.muted : (b.lit ? c.theme.icon : (c.shadow ? "#ffffff" : c.theme.bright))
+                style: c.shadow ? Text.Raised : Text.Normal; styleColor: "#99000000"
+                font.family: c.theme.font; font.pixelSize: b.big ? c.size + 10 : c.size
             }
             Text {
                 visible: b.badge !== ""
@@ -66,11 +66,11 @@ Item {
                 font.family: c.theme.font; font.pixelSize: c.theme.size - 5
             }
         }
-        // a lit dot under shuffle / repeat when they are on
+        // a small bar under shuffle / repeat when they are on
         Rectangle {
             visible: b.lit && !b.big
-            anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 1 }
-            width: 4; height: 4; color: c.theme.icon
+            anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 2 }
+            width: 14; height: 2; color: c.theme.icon
         }
         MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (b.usable) b.clicked() }
     }
@@ -78,7 +78,7 @@ Item {
     Row {
         id: row
         anchors.horizontalCenter: parent.horizontalCenter
-        spacing: 4
+        spacing: 6
 
         Btn {   // shuffle
             visible: c.ok && c.player.shuffleSupported

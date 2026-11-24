@@ -81,7 +81,7 @@ Three rules keep the laziness honest:
 | **Color picker** | `SUPER + SHIFT + P` picks any pixel with `hyprpicker` and copies the hex value to the clipboard |
 | **Camera** | `SUPER + SHIFT + O` opens `snapshot` (GNOME Camera, simple and dark-theme friendly) |
 | **System monitor** | `btop` with the **TTY** color theme (uses your terminal's Tokyo Night colors) and the theme background **off**, written for your user **and root**. `SUPER + SHIFT + T` opens it |
-| **Screenshots** | `grim` + `slurp`. `SUPER + SHIFT + S` **freezes the screen** (needs `imagemagick`; the mouse pointer is never in the picture) (hyprpicker draws an exact copy) while you select, and the selection overlay has no fade, so the picture is never tinted blue |
+| **Screenshots** | `grim` + `slurp`. `SUPER + SHIFT + S` **freezes the screen** (the mouse pointer is never in the picture: it is hidden while the screen is captured; cutting works with `imagemagick` or, without it, with Python) (hyprpicker draws an exact copy) while you select, and the selection overlay has no fade, so the picture is never tinted blue |
 | **Animated wallpapers** | Drop `.mp4 .webm .mkv .mov .gif` files into `~/.config/hypr/wallpapers/animated`; `SUPER + W` cycles stills and animated ones. `mpvpaper` plays them silently and pauses when a fullscreen window covers it. Your last wallpaper is restored at login |
 | **Location** | Settings → Location: GeoClue app permissions (`/etc/geoclue/geoclue.conf`). Pick an app to switch ALLOWED / DENIED, or add one by its desktop id. A GeoClue agent runs at login for apps not on the list |
 | **Audio** | Settings → Audio: **"Laptop speakers too quiet?"** raises every hidden ALSA level (Master, Speaker, PCM...) to 100% and saves it; select an output; copy diagnostics |
@@ -103,9 +103,9 @@ Three rules keep the laziness honest:
 | Switch between open windows | Hold `ALT`, tap `TAB` for the next one (`SHIFT + TAB` goes back), let go of `ALT` to switch. A quick tap = previous window |
 | Go back to the classic password dialog | `SUPER + I` → Password dialog (themed / classic) |
 | Change resolution, scale, rotation, screen position | `SUPER + I` → Display (12 seconds to confirm, otherwise it goes back) |
-| Play 4:3 stretched on a 16:9 screen (CS2 and others) | Steam → game → Properties → Launch options: `krmv-stretch %command%` (once). Then `SUPER + I` → Display → Stretched resolution to switch it ON/OFF and pick the size (1440x1080, ...). Hyprland has no GPU stretch of its own, so this uses `gamescope -S stretch` |
+| Play 4:3 stretched on a 16:9 screen (CS2 and others) | Steam → game → Properties → Launch options: `krmv-stretch %command%` (once). Then `SUPER + I` → Display → Stretched resolution: switch it ON/OFF and pick the method. **Native Wayland** (default) is the same as `SDL_VIDEO_DRIVER=wayland %command%`: pick the 4:3 resolution inside the game, full speed, normal mouse, no Steam overlay (the overlay needs X11). **gamescope** keeps the Steam overlay; its frame rate is set from your monitor now, and `KRMV_GAMESCOPE_ARGS=--force-grab-cursor` helps if the mouse does not capture |
 | Stretch only ONE game / give one game its own size | Put the launch option on that game only. Own size: `KRMV_STRETCH=1280x960 krmv-stretch %command%`; never stretch it: `KRMV_STRETCH=off krmv-stretch %command%` |
-| Mouse feels odd when I flick it fast | `SUPER + I` → Mouse for games (flat profile, no acceleration; the touchpad is not touched) |
+| Mouse or touchpad speed, acceleration, scrolling, tap to click | `SUPER + I` → Input (everything is saved and comes back at login; "Mouse for games" = flat profile) |
 | Use a resolution that is not in the list | `SUPER + I` → Display → Resolution and refresh rate → Custom resolution... |
 | Change or turn off DNS | `SUPER + I` → DNS |
 | Download torrents in the terminal | `ALT + SPACE`, `run tork` |
@@ -115,6 +115,7 @@ Three rules keep the laziness honest:
 | Pick a color from the screen | `SUPER + SHIFT + P` |
 | Screenshot an area (screen freezes) | `SUPER + SHIFT + S` |
 | Use an animated wallpaper | Copy a video/GIF into `~/.config/hypr/wallpapers/animated`, press `SUPER + W` until it shows |
+| Telegram / Discord notification sounds ignore my app volume | `scripts/appvol-daemon.sh` (started at login) applies your remembered per-app volume the moment an app opens a NEW sound stream, so short sounds obey it too |
 | App volume does nothing | Per-app sliders (bar volume popup and the media widget) set the volume through three paths, the last one is `scripts/appvol.sh` (PulseAudio sink inputs). Check by hand: `pactl list sink-inputs short`, then `sh ~/.config/hypr/scripts/appvol.sh firefox 40` |
 | Media controls (bar popup and desktop widget) | Only what the player supports is shown: shuffle and repeat (Spotify, VLC), back / forward 10 s (YouTube, videos, podcasts), play / pause / next / previous, the player's own volume, and a button that brings its window to the front. A YouTube tab simply has no shuffle or repeat |
 | Show net speed / media widget | `SUPER + I` → Desktop widgets |

@@ -17,6 +17,13 @@ state() {
   [ -e "$STATE/polkit-stock" ] && classic=true || classic=false
   [ "$(sget enabled)" = 1 ] && st_on=true || st_on=false
   sw="$(sget width)"; sh_="$(sget height)"; [ -n "$sw" ] || { sw=1440; sh_=1080; }
+  st_method="$(sget method)"; [ -n "$st_method" ] || st_method=wayland
+  iget() { v="$(sed -n "s/^$1=//p" "$STATE/input.conf" 2>/dev/null | head -n1)"; echo "${v:-$2}"; }
+  input="$(jq -n -c --arg ms "$(iget mouse_sens 0)" --arg ma "$(iget mouse_accel adaptive)" --arg mn "$(iget mouse_natural false)" \
+      --arg msc "$(iget mouse_scroll 1)" --arg lh "$(iget left_handed false)" --arg tn "$(iget tp_natural true)" \
+      --arg tt "$(iget tp_tap true)" --arg td "$(iget tp_dwt true)" --arg ts "$(iget tp_scroll 0.5)" \
+      '{mouseSens: ($ms | tonumber), mouseAccel: $ma, mouseNatural: ($mn == "true"), mouseScroll: ($msc | tonumber), leftHanded: ($lh == "true"),
+        tpNatural: ($tn == "true"), tpTap: ($tt == "true"), tpDwt: ($td == "true"), tpScroll: ($ts | tonumber)}')"
   layouts="$(cat "$STATE/layouts" 2>/dev/null)"; [ -n "$layouts" ] || layouts="us,ru"
 
   monitors="$(hyprctl monitors -j 2>/dev/null | jq -c '[.[] | {name, make, model, width, height, x, y, transform,
@@ -42,16 +49,35 @@ state() {
   dns="$(dns status 2>&1 | head -60)"
 
   jq -n -c --argjson night "$night" --argjson mouse "$mouse" --argjson classic "$classic" \
-    --argjson stOn "$st_on" --arg stW "$sw" --arg stH "$sh_" --arg layouts "$layouts" \
+    --argjson stOn "$st_on" --arg stW "$sw" --arg stH "$sh_" --arg stM "$st_method" --argjson input "$input" --arg layouts "$layouts" \
     --argjson monitors "$monitors" --argjson geo "$geo" --argjson wifi "$wifi" \
     --argjson sinks "$sinks" --arg defsink "$defsink" --arg dns "$dns" \
     '{night: $night, mouse: $mouse, polkitClassic: $classic,
-      stretch: {enabled: $stOn, width: ($stW | tonumber), height: ($stH | tonumber)}, layouts: $layouts,
-      monitors: $monitors, geo: $geo, wifi: $wifi, sinks: $sinks, defaultSink: $defsink, dns: $dns}'
+      stretch: {enabled: $stOn, width: ($stW | tonumber), height: ($stH | tonumber), method: $stM}, layouts: $layouts,
+      monitors: $monitors, input: $input, geo: $geo, wifi: $wifi, sinks: $sinks, defaultSink: $defsink, dns: $dns}'
 }
 
 case "${1:-state}" in
   state)         state ;;
+  input)         # input set <key> <value>
+    [ "$2" = set ] || exit 1
+    key="$3"; val="$4"
+    case "$val" in true|false|adaptive|flat) ;; ''|*[!0-9.-]*) exit 1 ;; esac
+    case "$key" in
+      mouse_sens)    lua="sensitivity = $val" ;;
+      mouse_accel)   lua="accel_profile = \"$val\"" ;;
+      mouse_natural) lua="natural_scroll = $val" ;;
+      mouse_scroll)  lua="scroll_factor = $val" ;;
+      left_handed)   lua="left_handed = $val" ;;
+      tp_natural)    lua="touchpad = { natural_scroll = $val }" ;;
+      tp_tap)        lua="touchpad = { tap_to_click = $val }" ;;
+      tp_dwt)        lua="touchpad = { disable_while_typing = $val }" ;;
+      tp_scroll)     lua="touchpad = { scroll_factor = $val }" ;;
+      *) exit 1 ;;
+    esac
+    touch "$STATE/input.conf"
+    if grep -q "^$key=" "$STATE/input.conf"; then sed -i "s|^$key=.*|$key=$val|" "$STATE/input.conf"; else echo "$key=$val" >> "$STATE/input.conf"; fi
+    hyprctl eval "hl.config({ input = { $lua } })" >/dev/null 2>&1 ;;
   toggle-night)  sh "$S/nightmode.sh" toggle >/dev/null 2>&1 ;;
   toggle-mouse)  sh "$S/mouse.sh" toggle >/dev/null 2>&1 ;;
   polkit)        # polkit themed|classic
@@ -61,6 +87,7 @@ case "${1:-state}" in
   stretch)       # stretch enabled 0|1   |   stretch size 1440x1080   |   stretch copy
     case "$2" in
       enabled) sput enabled "$3"; [ -n "$(sget width)" ] || { sput width 1440; sput height 1080; } ;;
+      method)  sput method "$3" ;;
       size)    sput width "${3%x*}"; sput height "${3#*x}" ;;
       copy)    printf '%s' 'krmv-stretch %command%' | wl-copy 2>/dev/null; notify-send "Stretch" "Copied: krmv-stretch %command%  (paste it into the game's Steam Launch Options)" 2>/dev/null ;;
     esac ;;

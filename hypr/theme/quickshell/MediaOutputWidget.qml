@@ -49,112 +49,130 @@ Item {
         onTriggered: widget.player.positionChanged()
     }
 
-    implicitWidth: 320
-    implicitHeight: 300
+    implicitWidth: 380
+    implicitHeight: col.implicitHeight + 20
 
-    Rectangle {
-        anchors.fill: parent
-        color: "transparent"      // no card behind it: the wallpaper shows through
+    ColumnLayout {
+        id: col
+        anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+        spacing: 14
 
+        // ---- artwork + what is playing ----
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 18
+
+            Rectangle {
+                Layout.preferredWidth: 104; Layout.preferredHeight: 104
+                color: Qt.rgba(1, 1, 1, 0.08)
+                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.22)
+                Image {
+                    id: art
+                    anchors.fill: parent; anchors.margins: 1
+                    visible: status === Image.Ready
+                    source: widget.active ? widget.player.trackArtUrl : ""
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize.width: 208; sourceSize.height: 208
+                }
+                Text {
+                    anchors.centerIn: parent
+                    visible: art.status !== Image.Ready
+                    text: "\uf001"
+                    color: "#80ffffff"
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: 38
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 5
+                Text {
+                    text: widget.active && widget.player.isPlaying ? "NOW PLAYING" : (widget.active ? "PAUSED" : "NOTHING PLAYING")
+                    color: widget.theme.icon; font.bold: true; font.letterSpacing: 2
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: widget.theme.size - 4
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: widget.active ? widget.player.trackTitle : "Start a player to see it here"
+                    color: "#ffffff"; font.bold: widget.active
+                    wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: widget.active ? widget.theme.size + 6 : widget.theme.size
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: widget.active && widget.player.trackArtist !== ""
+                    text: widget.active ? widget.player.trackArtist : ""
+                    color: "#e6ffffff"; elide: Text.ElideRight
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: widget.theme.size + 1
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: widget.active && widget.player.trackAlbum !== ""
+                    text: widget.active ? widget.player.trackAlbum : ""
+                    color: "#99ffffff"; elide: Text.ElideRight
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: widget.theme.size - 2
+                }
+            }
+        }
+
+        // ---- progress ----
         ColumnLayout {
-            anchors { fill: parent; margins: 14 }
-            spacing: 10
-
-            Text {
-                Layout.fillWidth: true
-                text: "Now playing"
-                color: widget.theme.icon; font.bold: true
-                style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size
-            }
-
-            RowLayout {
-                Layout.fillWidth: true; spacing: 12
-
-                Rectangle {
-                    Layout.preferredWidth: 88; Layout.preferredHeight: 88
-                    color: Qt.rgba(1, 1, 1, 0.06)
-                    border.width: 1; border.color: widget.theme.muted
-                    Image {
-                        id: art
-                        anchors.fill: parent
-                        visible: status === Image.Ready
-                        source: widget.active ? widget.player.trackArtUrl : ""
-                        asynchronous: true
-                        fillMode: Image.PreserveAspectCrop
-                        sourceSize.width: 176; sourceSize.height: 176
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        visible: art.status !== Image.Ready
-                        text: "\uf001"
-                        color: "#b3ffffff"
-                        style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size + 16
-                    }
+            Layout.fillWidth: true
+            spacing: 6
+            opacity: widget.canSeekNow ? 1 : 0.5
+            Item {
+                Layout.fillWidth: true; Layout.preferredHeight: 14
+                Rectangle { id: track; anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter } height: 3; color: Qt.rgba(1, 1, 1, 0.25) }
+                Rectangle { anchors { left: track.left; verticalCenter: track.verticalCenter } height: 3; width: track.width * widget.fraction; color: widget.theme.icon }
+                Rectangle {   // the handle: appears on hover
+                    visible: seekArea.containsMouse && widget.canSeekNow
+                    anchors.verticalCenter: track.verticalCenter
+                    x: Math.max(0, Math.min(track.width - width, track.width * widget.fraction - width / 2))
+                    width: 10; height: 10; color: "#ffffff"
                 }
-
-                ColumnLayout {
-                    Layout.fillWidth: true; spacing: 4
-                    Text {
-                        Layout.fillWidth: true
-                        text: widget.active ? widget.player.trackTitle : "No media playing"
-                        color: "#ffffff"; font.bold: true
-                        elide: Text.ElideRight
-                        style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: widget.active ? widget.player.trackArtist : "Start a player to see it here"
-                        color: widget.theme.icon
-                        elide: Text.ElideRight
-                        style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size - 1
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        visible: widget.active && widget.player.trackAlbum !== ""
-                        text: widget.active ? widget.player.trackAlbum : ""
-                        color: "#b3ffffff"
-                        elide: Text.ElideRight
-                        style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size - 2
-                    }
+                MouseArea {
+                    id: seekArea
+                    anchors.fill: parent; hoverEnabled: true
+                    cursorShape: widget.canSeekNow ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onPressed: mouse => widget.seek(Math.max(0, Math.min(1, mouse.x / width)))
+                    onPositionChanged: mouse => { if (pressed) widget.seek(Math.max(0, Math.min(1, mouse.x / width))) }
                 }
             }
-
-            Slider {
-                Layout.fillWidth: true
-                theme: widget.theme
-                enabled: widget.canSeekNow
-                opacity: widget.canSeekNow ? 1 : 0.4
-                value: widget.fraction
-                onMoved: v => widget.seek(v)
-            }
-
             RowLayout {
                 Layout.fillWidth: true
                 Text {
                     text: widget.active ? widget.fmt(widget.player.position) : "0:00"
-                    color: "#ffffff"
-                    style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size - 1
+                    color: "#e6ffffff"
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: widget.theme.size - 2
                 }
                 Item { Layout.fillWidth: true }
                 Text {
                     text: widget.active && widget.player.lengthSupported && widget.player.length > 0 ? widget.fmt(widget.player.length) : "live"
-                    color: "#b3ffffff"
-                    style: Text.Raised; styleColor: "#99000000"; font.family: widget.theme.font; font.pixelSize: widget.theme.size - 1
+                    color: "#99ffffff"
+                    style: Text.Raised; styleColor: "#99000000"
+                    font.family: widget.theme.font; font.pixelSize: widget.theme.size - 2
                 }
             }
+        }
 
-            MediaControls {
-                Layout.alignment: Qt.AlignHCenter
-                theme: widget.theme
-                player: widget.active ? widget.player : null
-                shadow: true
-            }
-            MediaExtras {
-                Layout.fillWidth: true
-                theme: widget.theme
-                player: widget.active ? widget.player : null
-                shadow: true
-            }
+        MediaControls {
+            Layout.alignment: Qt.AlignHCenter
+            theme: widget.theme
+            player: widget.active ? widget.player : null
+            shadow: true
+        }
+        MediaExtras {
+            Layout.fillWidth: true
+            theme: widget.theme
+            player: widget.active ? widget.player : null
+            shadow: true
         }
     }
 }

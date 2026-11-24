@@ -1,42 +1,46 @@
-// ~/.config/fastfetch/config.jsonc - minimal, Tokyo Night. Linked by install.sh.
-// Colors are truecolor codes:  cyan 13;185;215  purple 173;142;230  text 169;177;214  grey 68;75;106
-// scripts/fetch.sh picks the logo size from the width of your terminal (small terminal: small logo or none).
+// ~/.config/fastfetch/config.jsonc - three tidy groups, a small logo and a row of color dots. Linked by install.sh.
+// Colors are truecolor codes:  tan 224;175;104  cyan 13;185;215  blue 122;162;247  purple 173;142;230  text 169;177;214  grey 68;75;106
+// scripts/fetch.sh drops the logo when the terminal is narrow.
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "type": "auto",
-    "padding": { "top": 1, "left": 1, "right": 3 },
+    "type": "small",
+    "padding": { "top": 1, "left": 2, "right": 4 },
     "color": { "1": "38;2;13;185;215", "2": "38;2;122;162;247", "3": "38;2;173;142;230" }
   },
   "display": {
     "separator": "  ",
     "color": {
-      "keys": "38;2;13;185;215",
-      "title": "38;2;173;142;230",
+      "keys": "1;38;2;13;185;215",
+      "title": "1;38;2;13;185;215",
       "separator": "38;2;68;75;106",
       "output": "38;2;169;177;214"
     },
-    "key": { "width": 10 },
+    "key": { "width": 12 },
     "percent": { "type": 1 }
   },
   "modules": [
-    "title",
-    { "type": "custom", "format": "──────────────────────────────", "outputColor": "38;2;68;75;106" },
+    { "type": "title", "color": { "user": "1;38;2;13;185;215", "at": "38;2;68;75;106", "host": "1;38;2;173;142;230" } },
+    "break",
 
-    { "type": "os",       "key": "\uf303  OS",     "format": "{name}" },
+    { "type": "os",       "key": "\uf303  OS",     "format": "{name} {arch}" },
     { "type": "kernel",   "key": "\uf17c  Kernel", "format": "{release}" },
     { "type": "uptime",   "key": "\uf017  Uptime" },
-    { "type": "packages", "key": "\uf187  Pkgs",   "format": "{all}" },
-    { "type": "shell",    "key": "\uf120  Shell",  "format": "{pretty-name}" },
-    { "type": "wm",       "key": "\uf2d0  WM",     "format": "{pretty-name}" },
-    { "type": "terminal", "key": "\uf108  Term",   "format": "{pretty-name}" },
+    { "type": "packages", "key": "\uf187  Pkgs",   "format": "{all} packages" },
+    "break",
 
-    { "type": "custom", "format": "──────────────────────────────", "outputColor": "38;2;68;75;106" },
+    { "type": "wm",       "key": "\uf2d0  WM",     "format": "{pretty-name} \u00b7 {protocol-name}" },
+    { "type": "shell",    "key": "\uf120  Shell",  "format": "{pretty-name} {version}" },
+    { "type": "terminal", "key": "\uf108  Term",   "format": "{pretty-name} {version}" },
+    "break",
 
-    { "type": "cpu",      "key": "\uf2db  CPU",    "format": "{name}" },
+    { "type": "cpu",      "key": "\uf2db  CPU",    "format": "{name} \u00b7 {cores-physical}C/{cores-logical}T" },
     { "type": "gpu",      "key": "\uf26c  GPU",    "format": "{name}" },
     { "type": "memory",   "key": "\uf1c0  RAM",    "format": "{used} / {total}" },
     { "type": "disk",     "key": "\uf0a0  Disk",   "folders": "/", "format": "{size-used} / {size-total}" },
-    { "type": "battery",  "key": "\uf240  Power",  "format": "{capacity}% {status}" }
+    { "type": "battery",  "key": "\uf240  Battery", "format": "{capacity}% \u00b7 {status}" },
+    "break",
+
+    { "type": "custom", "format": "{#38;2;13;185;215}\u25cf{#}  {#38;2;122;162;247}\u25cf{#}  {#38;2;173;142;230}\u25cf{#}  {#38;2;224;175;104}\u25cf{#}  {#38;2;68;75;106}\u25cf{#}" }
   ]
 }

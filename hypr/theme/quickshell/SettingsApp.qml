@@ -17,20 +17,20 @@ PanelWindow {
     readonly property string api: Quickshell.env("HOME") + "/.config/hypr/scripts/settings-api.sh"
     property int page: 0
     property var st: ({ night: false, mouse: false, polkitClassic: false, stretch: { enabled: false, width: 1440, height: 1080 },
-                        layouts: "", monitors: [], geo: [], wifi: [], sinks: [], defaultSink: "", dns: "" })
+                        layouts: "", input: { mouseSens: 0, mouseAccel: "adaptive", mouseNatural: false, mouseScroll: 1, leftHanded: false, tpNatural: true, tpTap: true, tpDwt: true, tpScroll: 0.5 }, monitors: [], geo: [], wifi: [], sinks: [], defaultSink: "", dns: "" })
     property var pending: null                     // a display change waiting for "Keep / Revert": { name, oldRec, newRec }
     property int pendingLeft: 0
     property string confirmForget: ""              // uuid of the Wi-Fi network that asks "really forget?"
 
     readonly property var pages: [
-        { name: "Display",  icon: "\uf108" },
-        { name: "Network",  icon: "\uf1eb" },
-        { name: "Sound",    icon: "\uf028" },
-        { name: "Input",    icon: "\uf11c" },
-        { name: "Widgets",  icon: "\uf009" },
-        { name: "Privacy",  icon: "\uf124" },
-        { name: "Apps",     icon: "\uf00a" },
-        { name: "System",   icon: "\uf013" }
+        { name: "Display",  icon: "\uf108", desc: "Resolution, size of everything, rotation and stretched games." },
+        { name: "Network",  icon: "\uf1eb", desc: "Wi-Fi networks you know and private DNS." },
+        { name: "Sound",    icon: "\uf028", desc: "Where the sound goes, and how loud your laptop can be." },
+        { name: "Input",    icon: "\uf245", desc: "Mouse, touchpad and keyboard layouts." },
+        { name: "Widgets",  icon: "\uf009", desc: "What lives on your desktop and in the top bar." },
+        { name: "Privacy",  icon: "\uf124", desc: "Which apps may know where you are." },
+        { name: "Apps",     icon: "\uf00a", desc: "Default apps and keyboard shortcuts." },
+        { name: "System",   icon: "\uf013", desc: "Night mode, the password dialog and tidying up." }
     ]
 
     screen: Quickshell.screens[0]
@@ -40,7 +40,14 @@ PanelWindow {
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     color: "transparent"
 
-    onVisibleChanged: if (visible) refresh()
+    onVisibleChanged: if (visible) { refresh(); fade.restart() }
+    onPageChanged: { fade.restart(); flick.contentY = 0 }
+    // every page slides in a little and fades in
+    ParallelAnimation {
+        id: fade
+        NumberAnimation { target: pageCol; property: "opacity"; from: 0; to: 1; duration: 170 }
+        NumberAnimation { target: pageCol; property: "y"; from: 44; to: 28; duration: 190; easing.type: Easing.OutCubic }
+    }
 
     // ---- talking to the backend ----
     function refresh() { if (!stateProc.running) stateProc.running = true }
@@ -86,6 +93,10 @@ PanelWindow {
     Timer { interval: 1000; running: app.pending !== null; repeat: true
         onTriggered: { app.pendingLeft -= 1; if (app.pendingLeft <= 0) app.revertDisplay() } }
 
+    // pointer speed: send the value shortly after you stop dragging
+    property real pendingSens: 0
+    Timer { id: sensTimer; interval: 160; onTriggered: app.act(["input", "set", "mouse_sens", String(app.pendingSens)]) }
+
     // ---- window ----
     Shortcut { sequence: "Escape"; onActivated: app.closeRequested() }
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.55); MouseArea { anchors.fill: parent; onClicked: app.closeRequested() } }
@@ -93,6 +104,10 @@ PanelWindow {
     Rectangle {
         id: win
         anchors.centerIn: parent
+        opacity: app.visible ? 1 : 0
+        scale: app.visible ? 1 : 0.97
+        Behavior on opacity { NumberAnimation { duration: 140 } }
+        Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
         width: Math.min(app.width - 80, 1040); height: Math.min(app.height - 80, 700)
         color: app.theme.bg
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
@@ -107,10 +122,21 @@ PanelWindow {
             ColumnLayout {
                 anchors { fill: parent; margins: 14 }
                 spacing: 4
-                Text {
-                    Layout.leftMargin: 8; Layout.topMargin: 6; Layout.bottomMargin: 14
-                    text: "Settings"; color: app.theme.bright; font.bold: true
-                    font.family: app.theme.font; font.pixelSize: app.theme.size + 6
+                RowLayout {
+                    Layout.leftMargin: 6; Layout.topMargin: 4; Layout.bottomMargin: 18
+                    spacing: 12
+                    Rectangle {
+                        Layout.preferredWidth: 36; Layout.preferredHeight: 36; color: app.theme.icon
+                        Text { anchors.centerIn: parent; text: "\uf013"; color: app.theme.bg
+                               font.family: app.theme.font; font.pixelSize: app.theme.size + 6 }
+                    }
+                    ColumnLayout {
+                        spacing: 0
+                        Text { text: "Settings"; color: app.theme.bright; font.bold: true
+                               font.family: app.theme.font; font.pixelSize: app.theme.size + 4 }
+                        Text { text: "krmv-setup"; color: app.theme.dim
+                               font.family: app.theme.font; font.pixelSize: app.theme.size - 3 }
+                    }
                 }
                 Repeater {
                     model: app.pages
@@ -158,10 +184,19 @@ PanelWindow {
                 width: flick.width - 64
                 spacing: 16
 
-                Text {
-                    text: app.pages[app.page].name
-                    color: app.theme.bright; font.bold: true
-                    font.family: app.theme.font; font.pixelSize: app.theme.size + 10
+                ColumnLayout {
+                    spacing: 4
+                    Layout.bottomMargin: 6
+                    Text {
+                        text: app.pages[app.page].name
+                        color: app.theme.bright; font.bold: true
+                        font.family: app.theme.font; font.pixelSize: app.theme.size + 12
+                    }
+                    Text {
+                        text: app.pages[app.page].desc
+                        color: app.theme.dim
+                        font.family: app.theme.font; font.pixelSize: app.theme.size - 1
+                    }
                 }
 
                 // =================================================== DISPLAY
@@ -192,9 +227,34 @@ PanelWindow {
                             id: monCard
                             required property var modelData
                             theme: app.theme
-                            title: modelData.name + (modelData.make ? "   " + modelData.make + " " + modelData.model : "")
+                            icon: "\uf108"; title: modelData.name + (modelData.make ? "   " + modelData.make + " " + modelData.model : "")
                             subtitle: modelData.width + " x " + modelData.height + " at " + Math.round(modelData.rate) + " Hz, scale " + modelData.scale
 
+                            RowLayout {
+                                Layout.fillWidth: true; spacing: 18
+                                Item {   // a drawing of the screen, with the real proportions
+                                    readonly property bool turned: monCard.modelData.transform % 2 === 1
+                                    readonly property real ratio: turned ? monCard.modelData.width / monCard.modelData.height
+                                                                         : monCard.modelData.height / monCard.modelData.width
+                                    Layout.preferredWidth: 150; Layout.preferredHeight: 100
+                                    Rectangle {
+                                        anchors.centerIn: parent
+                                        width: parent.turned ? Math.min(90, 100 / Math.max(0.1, parent.ratio)) : 144
+                                        height: parent.turned ? 100 : Math.min(100, 144 * parent.ratio)
+                                        color: Qt.rgba(1, 1, 1, 0.05); border.width: 2; border.color: app.theme.icon
+                                        Text { anchors.centerIn: parent; color: app.theme.bright; font.bold: true
+                                               text: monCard.modelData.width + "\u00d7" + monCard.modelData.height
+                                               font.family: app.theme.font; font.pixelSize: app.theme.size - 2 }
+                                    }
+                                }
+                                ColumnLayout {
+                                    spacing: 3
+                                    Text { text: Math.round(monCard.modelData.rate) + " Hz"; color: app.theme.bright; font.bold: true
+                                           font.family: app.theme.font; font.pixelSize: app.theme.size + 8 }
+                                    Text { text: "Scale " + Math.round(monCard.modelData.scale * 100) + "%   \u00b7   rotation " + monCard.modelData.transform * 90 + "\u00b0"
+                                           color: app.theme.dim; font.family: app.theme.font; font.pixelSize: app.theme.size - 2 }
+                                }
+                            }
                             UiRow {
                                 theme: app.theme; title: "Size of everything"; subtitle: "Scale. 100% is sharpest and smallest."
                                 UiSegment {
@@ -250,14 +310,26 @@ PanelWindow {
 
                     UiCard {
                         theme: app.theme
-                        title: "Stretched resolution for games"
-                        subtitle: "Run a game at 4:3 and stretch it over the whole 16:9 screen. Add  krmv-stretch %command%  to the game's Steam launch options once; this switch then turns it on and off. Uses gamescope."
+                        icon: "\uf0b2"; title: "Stretched resolution for games"
+                        subtitle: "Play at 4:3 and stretch it over the whole 16:9 screen. Add  krmv-stretch %command%  to the game's Steam launch options once; this switch then turns it on and off for that game."
                         UiRow {
                             theme: app.theme; title: "Stretch"
                             Toggle { theme: app.theme; on: app.st.stretch.enabled; onToggled: app.act(["stretch", "enabled", app.st.stretch.enabled ? "0" : "1"]) }
                         }
                         UiRow {
-                            theme: app.theme; title: "Game resolution"
+                            theme: app.theme; title: "Method"
+                            subtitle: app.st.stretch.method === "gamescope"
+                                      ? "gamescope: the Steam overlay works, but some games limit the frame rate or capture the mouse differently."
+                                      : "Native Wayland (recommended): same as SDL_VIDEO_DRIVER=wayland. Full speed, normal mouse. Pick the 4:3 resolution inside the game. No Steam overlay."
+                            UiSegment {
+                                theme: app.theme; current: app.st.stretch.method
+                                options: [ { label: "Native Wayland", value: "wayland" }, { label: "gamescope", value: "gamescope" } ]
+                                onPicked: v => app.act(["stretch", "method", v])
+                            }
+                        }
+                        UiRow {
+                            visible: app.st.stretch.method === "gamescope"
+                            theme: app.theme; title: "Game resolution"; subtitle: "Only for the gamescope method."
                             UiSegment {
                                 theme: app.theme; current: app.st.stretch.width + "x" + app.st.stretch.height
                                 options: [ { label: "1024x768", value: "1024x768" }, { label: "1280x960", value: "1280x960" },
@@ -276,7 +348,7 @@ PanelWindow {
 
                     UiCard {
                         theme: app.theme
-                        title: "Wi-Fi networks you know"
+                        icon: "\uf1eb"; title: "Wi-Fi networks you know"
                         subtitle: "Connect, let a network connect by itself, or forget it."
                         Text {
                             visible: app.st.wifi.length === 0
@@ -322,7 +394,7 @@ PanelWindow {
 
                     UiCard {
                         theme: app.theme
-                        title: "Private DNS"
+                        icon: "\uf023"; title: "Private DNS"
                         subtitle: "Encrypted DNS (DNS-over-TLS) for the whole system. Pick one provider, or turn it off to go back to your network's own DNS."
                         Flow {
                             Layout.fillWidth: true; spacing: 8
@@ -356,7 +428,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        title: "Where the sound goes"
+                        icon: "\uf028"; title: "Where the sound goes"
                         Repeater {
                             model: app.st.sinks
                             delegate: Rectangle {
@@ -377,7 +449,7 @@ PanelWindow {
                     }
                     UiCard {
                         theme: app.theme
-                        title: "Laptop speakers too quiet?"
+                        icon: "\uf028"; title: "Laptop speakers too quiet?"
                         subtitle: "If headphones are loud but the speakers are weak, a hidden volume level is low. This raises every one of them to 100% and keeps it after a restart."
                         RowLayout {
                             spacing: 8
@@ -393,16 +465,77 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        title: "Mouse"
+                        icon: "\uf245"; title: "Mouse"
+                        UiRow {
+                            theme: app.theme; title: "Pointer speed"; subtitle: "Slower on the left, faster on the right."
+                            Slider {
+                                id: speed
+                                theme: app.theme; width: 200
+                                value: (app.st.input.mouseSens + 1) / 2
+                                onMoved: v => { app.pendingSens = Math.round((v * 2 - 1) * 100) / 100; sensTimer.restart() }
+                            }
+                            Text { width: 42; horizontalAlignment: Text.AlignRight; color: app.theme.dim
+                                   text: (app.st.input.mouseSens > 0 ? "+" : "") + app.st.input.mouseSens.toFixed(2)
+                                   font.family: app.theme.font; font.pixelSize: app.theme.size - 2 }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Acceleration"
+                            subtitle: "Adaptive: a fast flick goes further. Flat: the cursor moves exactly as far as the mouse did."
+                            UiSegment {
+                                theme: app.theme; current: app.st.input.mouseAccel
+                                options: [ { label: "Adaptive", value: "adaptive" }, { label: "Flat", value: "flat" } ]
+                                onPicked: v => app.act(["input", "set", "mouse_accel", v])
+                            }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Scroll speed"
+                            UiSegment {
+                                theme: app.theme; current: app.st.input.mouseScroll
+                                options: [ { label: "Slow", value: 0.5 }, { label: "Normal", value: 1 }, { label: "Fast", value: 2 }, { label: "Very fast", value: 3 } ]
+                                onPicked: v => app.act(["input", "set", "mouse_scroll", String(v)])
+                            }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Natural scrolling"; subtitle: "The page follows the wheel, like a phone."
+                            Toggle { theme: app.theme; on: app.st.input.mouseNatural; onToggled: app.act(["input", "set", "mouse_natural", app.st.input.mouseNatural ? "false" : "true"]) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Left-handed"; subtitle: "Swaps the left and right buttons."
+                            Toggle { theme: app.theme; on: app.st.input.leftHanded; onToggled: app.act(["input", "set", "left_handed", app.st.input.leftHanded ? "false" : "true"]) }
+                        }
                         UiRow {
                             theme: app.theme; title: "Mouse for games"
-                            subtitle: "Flat profile, no acceleration: a fast flick moves the cursor exactly as far as the mouse moved. The touchpad is not touched."
+                            subtitle: "Flat profile for every real mouse, no acceleration. The touchpad is not touched."
                             Toggle { theme: app.theme; on: app.st.mouse; onToggled: app.act(["toggle-mouse"]) }
                         }
                     }
                     UiCard {
                         theme: app.theme
-                        title: "Keyboard layouts"
+                        icon: "\uf0c8"; title: "Touchpad"
+                        UiRow {
+                            theme: app.theme; title: "Natural scrolling"; subtitle: "Two fingers up moves the page up."
+                            Toggle { theme: app.theme; on: app.st.input.tpNatural; onToggled: app.act(["input", "set", "tp_natural", app.st.input.tpNatural ? "false" : "true"]) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Scroll speed"
+                            UiSegment {
+                                theme: app.theme; current: app.st.input.tpScroll
+                                options: [ { label: "Slow", value: 0.3 }, { label: "Calm", value: 0.5 }, { label: "Normal", value: 0.8 }, { label: "Fast", value: 1.2 }, { label: "Very fast", value: 2 } ]
+                                onPicked: v => app.act(["input", "set", "tp_scroll", String(v)])
+                            }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Tap to click"
+                            Toggle { theme: app.theme; on: app.st.input.tpTap; onToggled: app.act(["input", "set", "tp_tap", app.st.input.tpTap ? "false" : "true"]) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Ignore the touchpad while typing"
+                            Toggle { theme: app.theme; on: app.st.input.tpDwt; onToggled: app.act(["input", "set", "tp_dwt", app.st.input.tpDwt ? "false" : "true"]) }
+                        }
+                    }
+                    UiCard {
+                        theme: app.theme
+                        icon: "\uf11c"; title: "Keyboard layouts"
                         subtitle: "ALT + SHIFT switches between them."
                         UiRow {
                             theme: app.theme; title: "Installed"; subtitle: app.st.layouts.replace(/,/g, "   \u00b7   ")
@@ -417,7 +550,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        title: "On the desktop and in the bar"
+                        icon: "\uf009"; title: "On the desktop and in the bar"
                         subtitle: "Net speed and media output are off until you switch them on."
                         Repeater {
                             model: app.widgets
@@ -437,7 +570,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        title: "Location"
+                        icon: "\uf124"; title: "Location"
                         subtitle: "Which apps may ask where you are. Changing it asks for your password."
                         Text {
                             visible: app.st.geo.length === 0
@@ -470,13 +603,13 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        title: "Default apps"
+                        icon: "\uf00a"; title: "Default apps"
                         subtitle: "Which app opens web links, files, images, videos, PDFs, music..."
                         UiButton { theme: app.theme; text: "Choose default apps..."; onClicked: app.act(["open", "apps"]) }
                     }
                     UiCard {
                         theme: app.theme
-                        title: "Keyboard shortcuts"
+                        icon: "\uf11c"; title: "Keyboard shortcuts"
                         subtitle: "See every shortcut, or change the ones you can change."
                         UiButton { theme: app.theme; text: "Open the shortcut list..."; onClicked: app.act(["open", "shortcuts"]) }
                     }
@@ -488,7 +621,7 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        title: "Screen"
+                        icon: "\uf186"; title: "Screen"
                         UiRow {
                             theme: app.theme; title: "Night mode"; subtitle: "Warmer colors in the evening."
                             Toggle { theme: app.theme; on: app.st.night; onToggled: app.act(["toggle-night"]) }
@@ -496,7 +629,7 @@ PanelWindow {
                     }
                     UiCard {
                         theme: app.theme
-                        title: "Password dialog"
+                        icon: "\uf023"; title: "Password dialog"
                         subtitle: "The window that asks for your password (pkexec, GParted, Ventoy...)."
                         UiRow {
                             theme: app.theme; title: "Style"
@@ -509,7 +642,7 @@ PanelWindow {
                     }
                     UiCard {
                         theme: app.theme
-                        title: "Free up disk space"
+                        icon: "\uf1f8"; title: "Free up disk space"
                         subtitle: "Removes the package cache, old logs and other leftovers. Opens in a terminal so you see what happens."
                         UiButton { theme: app.theme; icon: "\uf1f8"; text: "Clean up the system"; onClicked: app.act(["open", "cleanup"]) }
                     }

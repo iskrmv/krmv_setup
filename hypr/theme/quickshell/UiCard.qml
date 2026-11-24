@@ -7,6 +7,7 @@ Rectangle {
     required property var theme
     property string title: ""
     property string subtitle: ""
+    property string icon: ""
     default property alias content: body.data
 
     Layout.fillWidth: true
@@ -15,6 +16,8 @@ Rectangle {
     border.width: 1
     border.color: Qt.rgba(1, 1, 1, 0.07)
 
+    Rectangle { width: 28; height: 2; color: c.theme.icon }      // small accent mark on the top edge
+
     ColumnLayout {
         id: col
         anchors { left: parent.left; right: parent.right; top: parent.top; margins: 18 }
@@ -22,9 +25,17 @@ Rectangle {
         ColumnLayout {
             visible: c.title !== ""
             spacing: 3
-            Text {
-                text: c.title; color: c.theme.bright; font.bold: true
-                font.family: c.theme.font; font.pixelSize: c.theme.size + 1
+            RowLayout {
+                spacing: 10
+                Text {
+                    visible: c.icon !== ""
+                    text: c.icon; color: c.theme.icon
+                    font.family: c.theme.font; font.pixelSize: c.theme.size + 3
+                }
+                Text {
+                    text: c.title; color: c.theme.bright; font.bold: true
+                    font.family: c.theme.font; font.pixelSize: c.theme.size + 2
+                }
             }
             Text {
                 visible: c.subtitle !== ""

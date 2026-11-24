@@ -10,7 +10,10 @@ Item {
     default property alias control: slot.data
 
     Layout.fillWidth: true
-    implicitHeight: Math.max(38, txt.implicitHeight + 4)
+    implicitHeight: Math.max(44, txt.implicitHeight + 10)
+    // a hairline above every row except the first one of its card
+    readonly property bool first: !parent || parent.children.length === 0 || parent.children[0] === r
+    Rectangle { visible: !r.first; anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: -6 } height: 1; color: Qt.rgba(1, 1, 1, 0.06) }
 
     Column {
         id: txt

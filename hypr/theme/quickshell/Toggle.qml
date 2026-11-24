@@ -1,4 +1,4 @@
-// Toggle.qml - simple on/off switch
+// Toggle.qml - on/off switch: a flat track with a square knob that slides.
 import QtQuick
 
 Rectangle {
@@ -6,13 +6,16 @@ Rectangle {
     required property var theme
     property bool on: false
     signal toggled()
-    width: 42; height: 22; radius: 0
-    color: on ? theme.icon : theme.muted
+    width: 44; height: 24
+    color: on ? theme.icon : Qt.rgba(1, 1, 1, 0.14)
+    Behavior on color { ColorAnimation { duration: 120 } }
     Rectangle {
-        width: 16; height: 16; radius: 0; y: 3
+        width: 18; height: 18; y: 3
         x: t.on ? 23 : 3
-        color: t.theme.bg
-        Behavior on x { NumberAnimation { duration: 120 } }
+        color: t.on ? t.theme.bg : "#d0d4e8"
+        Behavior on x { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+        Behavior on color { ColorAnimation { duration: 120 } }
     }
-    MouseArea { anchors.fill: parent; onClicked: t.toggled() }
+    Rectangle { anchors.fill: parent; color: "#ffffff"; opacity: area.containsMouse ? 0.07 : 0 }
+    MouseArea { id: area; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: t.toggled() }
 }
