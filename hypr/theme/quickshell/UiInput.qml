@@ -7,6 +7,8 @@ Rectangle {
     property alias text: input.text
     property string placeholder: ""
     property int maxLength: 64
+    property bool secret: false          // show dots instead of the text (passwords)
+    function focusInput() { input.forceActiveFocus() }
     signal accepted()
 
     implicitWidth: 200
@@ -19,6 +21,7 @@ Rectangle {
         id: input
         anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
         verticalAlignment: TextInput.AlignVCenter
+        echoMode: f.secret ? TextInput.Password : TextInput.Normal
         color: f.theme.bright; clip: true; maximumLength: f.maxLength
         selectByMouse: true
         font.family: f.theme.font; font.pixelSize: f.theme.size - 1

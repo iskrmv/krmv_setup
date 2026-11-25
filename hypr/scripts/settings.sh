@@ -355,12 +355,64 @@ dns_menu() {
 
 # ------------------------------------------------------------------ main menu
 
-# ---- entry points for the Settings app (settings-api.sh): "settings.sh apps|shortcuts|geo-list|geo-set <app> <true|false>"
+# ---- entry points for the Settings app (settings-api.sh). Everything prints JSON or a short "ok ..." / "error ..." line.
+json_str() { jq -R -s -c '.'; }
 case "${1:-}" in
   apps)       default_apps_menu; exit 0 ;;
   shortcuts)  shortcuts_menu; exit 0 ;;
   geo-list)   geo_rows; exit 0 ;;
   geo-set)    geo_set "$2" "$3"; exit 0 ;;
+
+  apps-json)    # the simple roles, each with its current app and the apps that could take over
+    for r in browser files terminal editor video audio image pdf; do
+      if [ "$r" = terminal ]; then
+        cur="$(current_app terminal)"
+        cands=""
+        for tm in kitty alacritty foot wezterm ghostty konsole gnome-terminal xterm; do
+          command -v "$tm" >/dev/null 2>&1 && cands="$cands$tm$TAB$tm
+"
+        done
+      else
+        cur="$(current_app "$r")"
+        cands="$(candidates "$(first_mime "$r")")"
+      fi
+      printf '%s' "$cands" | jq -R -s -c --arg id "$r" --arg label "$(role_label "$r")" --arg cur "$cur" \
+        '{id: $id, label: $label, current: $cur, candidates: (split("\n") | map(select(length > 0) | split("\t") | {name: .[0], file: .[1]}))}'
+    done | jq -s -c '.'
+    exit 0 ;;
+  app-set)      # app-set <role> <file.desktop | terminal name>
+    if [ "$2" = terminal ]; then set_pref TERMINAL "$3"; else set_default "$2" "$3"; fi
+    echo "ok"; exit 0 ;;
+  mimes-json)   # every file type the installed apps know, with the current default
+    for m in $(all_mimes); do
+      cur="$(xdg-mime query default "$m" 2>/dev/null)"
+      [ -n "$cur" ] && cur="$(desktop_name "$cur")"
+      printf '%s\t%s\n' "$m" "$cur"
+    done | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {mime: .[0], current: (.[1] // "")})'
+    exit 0 ;;
+  mime-candidates)
+    candidates "$2" | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {name: .[0], file: .[1]})'
+    exit 0 ;;
+  mime-set)     xdg-mime default "$3" "$2" && echo ok; exit 0 ;;
+
+  binds-json)   # id, keys, description, changed-by-you
+    effective_binds | jq -R -s -c --rawfile ov "${USER_OV:-/dev/null}" \
+      'split("\n") | map(select(length > 0) | split("\t") | {id: .[0], keys: .[1], desc: .[2]})
+       | map(. + {custom: (($ov | split("\n") | map(split("\t")[0]) | index(.id)) != null)})' 2>/dev/null \
+      || effective_binds | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {id: .[0], keys: .[1], desc: .[2], custom: false})'
+    exit 0 ;;
+  binds-fixed)
+    sed -E 's/  +/\t/' "$CFG/data/shortcuts.fixed.txt" 2>/dev/null | grep -v '^#' \
+      | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {keys: .[0], desc: (.[1] // "")})'
+    exit 0 ;;
+  bind-set)     # bind-set <id> <keys as typed or captured>
+    keys="$(norm_keys "$3")" || { echo "error That is not a valid combination: $3"; exit 0; }
+    if reserved "$keys"; then echo "error $keys is used by a fixed shortcut. Pick another one."; exit 0; fi
+    other="$(effective_binds | awk -F'\t' -v k="$keys" -v me="$2" 'tolower($2) == tolower(k) && $1 != me { print $3; exit }')"
+    if [ -n "$other" ]; then echo "error $keys is already used by: $other"; exit 0; fi
+    save_override "$2" "$keys"
+    echo "ok $keys"; exit 0 ;;
+  binds-reset)  rm -f "$USER_OV"; sh "$CFG/scripts/gen-binds.sh" && hyprctl reload >/dev/null 2>&1; echo ok; exit 0 ;;
 esac
 # Started without arguments (the launcher entry, a custom shortcut ...): open the Settings app. The old rofi menu below
 # is only the fallback when the bar is not running (or when KRMV_OLD_SETTINGS=1 is set).

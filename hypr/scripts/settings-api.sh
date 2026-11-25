@@ -98,8 +98,59 @@ case "${1:-state}" in
     esac ;;
   display)       sh "$S/display.sh" "$2" "$3" ;;
   geo)           sh "$S/settings.sh" geo-set "$2" "$3" ;;
+  apps)          case "$2" in list) sh "$S/settings.sh" apps-json ;; set) sh "$S/settings.sh" app-set "$3" "$4" ;; esac ;;
+  mime)          case "$2" in list) sh "$S/settings.sh" mimes-json ;; candidates) sh "$S/settings.sh" mime-candidates "$3" ;; set) sh "$S/settings.sh" mime-set "$3" "$4" ;; esac ;;
+  binds)         case "$2" in list) sh "$S/settings.sh" binds-json ;; fixed) sh "$S/settings.sh" binds-fixed ;; set) sh "$S/settings.sh" bind-set "$3" "$4" ;; reset) sh "$S/settings.sh" binds-reset ;; esac ;;
+  camera)        # camera state | block | unblock | portal <app> yes|no
+    case "$2" in
+      state)
+        blocked=false; [ -e /etc/modprobe.d/krmv-camera-block.conf ] && blocked=true
+        present=false; ls /dev/video* >/dev/null 2>&1 && present=true
+        [ "$blocked" = true ] && present=true
+        inuse="$(find /proc/[0-9]*/fd -lname '/dev/video*' 2>/dev/null | sed 's|/proc/\([0-9]*\)/.*|\1|' | sort -u \
+                 | while read -r pid; do cat "/proc/$pid/comm" 2>/dev/null; done | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')"
+        [ -n "$inuse" ] || inuse='[]'
+        portal="$(command -v flatpak >/dev/null 2>&1 && flatpak permissions devices camera 2>/dev/null \
+                 | awk '$1 == "devices" && $2 == "camera" { print $3 "\t" $4 }' \
+                 | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t") | {app: .[0], allowed: (.[1] == "yes")})')"
+        [ -n "$portal" ] || portal='[]'
+        jq -n -c --argjson present "$present" --argjson blocked "$blocked" --argjson inuse "$inuse" --argjson portal "$portal" \
+          '{present: $present, blocked: $blocked, inUse: $inuse, portal: $portal}' ;;
+      block)   pkexec sh -c 'printf "install uvcvideo /bin/false\n" > /etc/modprobe.d/krmv-camera-block.conf; modprobe -r uvcvideo' \
+                 || notify-send "Camera" "Could not switch the camera off (is an app using it?)" ;;
+      unblock) pkexec sh -c 'rm -f /etc/modprobe.d/krmv-camera-block.conf; modprobe uvcvideo' ;;
+      portal)  flatpak permission-set devices camera "$3" "$4" ;;
+    esac ;;
   wifi)          # wifi connect <uuid> | forget <uuid> | auto <uuid> yes|no
     case "$2" in
+      scan)
+        nmcli -t -f IN-USE,SIGNAL,SECURITY,SSID device wifi list --rescan yes 2>/dev/null | sed 's/\\:/\x01/g' \
+          | jq -R -s -c 'split("\n") | map(select(length > 0) | split(":") | {inUse: (.[0] == "*"), signal: (.[1] | tonumber? // 0), secure: (.[2] != ""), ssid: (.[3:] | join(":") | gsub("\u0001"; ":"))})
+                        | map(select(.ssid != "")) | group_by(.ssid) | map(max_by(.signal)) | sort_by(-.signal)' ;;
+      join)    # wifi join <ssid> <password>   prints {"ok":true|false,"msg":"..."}
+        ssid="$3"; pass="$4"
+        saved=0; nmcli -t -f NAME connection show 2>/dev/null | grep -qxF "$ssid" && saved=1
+        if [ "$saved" = 1 ]; then
+          [ -n "$pass" ] && nmcli connection modify id "$ssid" wifi-sec.psk "$pass" >/dev/null 2>&1
+          out="$(nmcli connection up id "$ssid" 2>&1)"; rc=$?
+        elif [ -n "$pass" ]; then
+          out="$(nmcli device wifi connect "$ssid" password "$pass" 2>&1)"; rc=$?
+        else
+          out="$(nmcli device wifi connect "$ssid" 2>&1)"; rc=$?
+        fi
+        if [ "$rc" = 0 ]; then
+          nmcli connection modify id "$ssid" connection.autoconnect yes >/dev/null 2>&1
+          jq -n -c '{ok: true, msg: "Connected"}'
+        else
+          # a profile that was just created with a wrong password must not stay behind
+          [ "$saved" = 0 ] && nmcli connection delete id "$ssid" >/dev/null 2>&1
+          case "$out" in
+            *[Ss]ecrets*|*"(7)"*|*"(4)"*|*assword*|*handshake*|*authentication*) msg="Wrong password. Try again." ;;
+            *"No network with SSID"*|*"not found"*) msg="That network is not in range right now." ;;
+            *) msg="Could not connect: $(printf '%s' "$out" | head -n1)" ;;
+          esac
+          jq -n -c --arg msg "$msg" '{ok: false, msg: $msg}'
+        fi ;;
       connect) nmcli connection up uuid "$3" >/dev/null 2>&1 || notify-send "Wi-Fi" "Could not connect. Is the password still right?" ;;
       forget)  nmcli connection delete uuid "$3" >/dev/null 2>&1 || pkexec nmcli connection delete uuid "$3" ;;
       auto)    nmcli connection modify uuid "$3" connection.autoconnect "$4" >/dev/null 2>&1 || pkexec nmcli connection modify uuid "$3" connection.autoconnect "$4" ;;
