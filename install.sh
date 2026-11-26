@@ -392,19 +392,28 @@ if [ -z "${SKIP_SDDM:-}" ]; then
   say "Installing the SDDM theme"
   T=/usr/share/sddm/themes/krmv-tokyo
   SRC="$CFG/hypr/wallpapers/sddm"
-  img="$(find "$SRC" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | sort | head -n1 || true)"
+  # a picture, an animated gif or a silent video: the first file found (sorted by name)
+  img="$(find "$SRC" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.gif' \
+        -o -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mkv' -o -iname '*.mov' \) 2>/dev/null | sort | head -n1 || true)"
 
   sudo mkdir -p /usr/share/sddm/themes /etc/sddm.conf.d
   sudo rm -rf "$T"
   sudo cp -r "$HERE/sddm/krmv-tokyo" "$T"
   printf '[Theme]\nCurrent=krmv-tokyo\n' | sudo tee /etc/sddm.conf.d/10-theme.conf >/dev/null
   if [ -n "$img" ]; then
-    name="background.${img##*.}"
-    sudo cp "$img" "$T/$name"      # SDDM cannot read your home folder, so the image is copied
-    printf '[General]\nbackground=%s\n' "$name" | sudo tee "$T/theme.conf" >/dev/null
+    ext="$(printf '%s' "${img##*.}" | tr 'A-Z' 'a-z')"
+    name="background.$ext"
+    sudo cp "$img" "$T/$name"      # SDDM cannot read your home folder, so the file is copied
+    case "$ext" in
+      mp4|webm|mkv|mov)
+        # a video wallpaper needs the Qt multimedia module and its ffmpeg backend
+        sudo pacman -S --needed --noconfirm qt6-multimedia qt6-multimedia-ffmpeg || warn "Could not install qt6-multimedia: the login screen keeps a plain background" ;;
+    esac
+    sudo sed -i "s|^background=.*|background=$name|" "$T/theme.conf"
+    sudo chmod -R a+rX "$T"
     echo "SDDM wallpaper: $img"
   else
-    echo "No image in $SRC - SDDM uses a plain background. Add one and run this script again."
+    echo "No image in $SRC - SDDM uses a plain background. Add one (jpg, png, gif or mp4) and run this script again."
   fi
   sudo systemctl enable sddm 2>/dev/null || warn "Could not enable sddm (another display manager may already be enabled)"
 fi

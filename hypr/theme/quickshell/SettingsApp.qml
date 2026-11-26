@@ -16,7 +16,7 @@ PanelWindow {
 
     readonly property string api: Quickshell.env("HOME") + "/.config/hypr/scripts/settings-api.sh"
     property int page: 0
-    property var st: ({ night: false, mouse: false, polkitClassic: false, stretch: { enabled: false, width: 1440, height: 1080 },
+    property var st: ({ night: false, mouse: false, polkitClassic: false, batteryWarn: true, stretch: { enabled: false, width: 1440, height: 1080 },
                         layouts: "", input: { mouseSens: 0, mouseAccel: "adaptive", mouseNatural: false, mouseScroll: 1, leftHanded: false, tpNatural: true, tpTap: true, tpDwt: true, tpScroll: 0.5 }, monitors: [], geo: [], wifi: [], sinks: [], defaultSink: "", dns: "" })
     property var pending: null                     // a display change waiting for "Keep / Revert": { name, oldRec, newRec }
     property int pendingLeft: 0
@@ -1016,6 +1016,16 @@ PanelWindow {
                                 onPicked: v => app.act(["polkit", v])
                             }
                         }
+                    }
+                    UiCard {
+                        theme: app.theme
+                        icon: "\uf240"; title: "Battery"
+                        UiRow {
+                            theme: app.theme; title: "Low battery warnings"
+                            subtitle: "A notification at 20%, 10% and 5% while the laptop runs on battery."
+                            Toggle { theme: app.theme; on: app.st.batteryWarn; onToggled: app.act(["battery-warn", "toggle"]) }
+                        }
+                        UiButton { theme: app.theme; text: "Show me a test warning"; onClicked: app.act(["battery-warn", "test"]) }
                     }
                     UiCard {
                         theme: app.theme

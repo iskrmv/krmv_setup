@@ -15,6 +15,7 @@ state() {
   night=false; case "$(sh "$S/nightmode.sh" status 2>/dev/null)" in *[Oo][Nn]*|*true*|*active*) night=true ;; esac
   [ "$(sh "$S/mouse.sh" status 2>/dev/null)" = ON ] && mouse=true || mouse=false
   [ -e "$STATE/polkit-stock" ] && classic=true || classic=false
+  [ -e "$STATE/battery-warn-off" ] && bwarn=false || bwarn=true
   [ "$(sget enabled)" = 1 ] && st_on=true || st_on=false
   sw="$(sget width)"; sh_="$(sget height)"; [ -n "$sw" ] || { sw=1440; sh_=1080; }
   st_method="$(sget method)"; [ -n "$st_method" ] || st_method=wayland
@@ -48,11 +49,11 @@ state() {
   defsink="$(pactl get-default-sink 2>/dev/null)"
   dns="$(dns status 2>&1 | head -60)"
 
-  jq -n -c --argjson night "$night" --argjson mouse "$mouse" --argjson classic "$classic" \
+  jq -n -c --argjson night "$night" --argjson mouse "$mouse" --argjson classic "$classic" --argjson bwarn "$bwarn" \
     --argjson stOn "$st_on" --arg stW "$sw" --arg stH "$sh_" --arg stM "$st_method" --argjson input "$input" --arg layouts "$layouts" \
     --argjson monitors "$monitors" --argjson geo "$geo" --argjson wifi "$wifi" \
     --argjson sinks "$sinks" --arg defsink "$defsink" --arg dns "$dns" \
-    '{night: $night, mouse: $mouse, polkitClassic: $classic,
+    '{night: $night, mouse: $mouse, polkitClassic: $classic, batteryWarn: $bwarn,
       stretch: {enabled: $stOn, width: ($stW | tonumber), height: ($stH | tonumber), method: $stM}, layouts: $layouts,
       monitors: $monitors, input: $input, geo: $geo, wifi: $wifi, sinks: $sinks, defaultSink: $defsink, dns: $dns}'
 }
@@ -78,6 +79,11 @@ case "${1:-state}" in
     touch "$STATE/input.conf"
     if grep -q "^$key=" "$STATE/input.conf"; then sed -i "s|^$key=.*|$key=$val|" "$STATE/input.conf"; else echo "$key=$val" >> "$STATE/input.conf"; fi
     hyprctl eval "hl.config({ input = { $lua } })" >/dev/null 2>&1 ;;
+  battery-warn)  # battery-warn toggle | test
+    case "$2" in
+      toggle) if [ -e "$STATE/battery-warn-off" ]; then rm -f "$STATE/battery-warn-off"; else : > "$STATE/battery-warn-off"; fi ;;
+      test)   notify-send -u normal -i battery-caution "Battery low (test)" "This is how the 20% warning looks." ;;
+    esac ;;
   toggle-night)  sh "$S/nightmode.sh" toggle >/dev/null 2>&1 ;;
   toggle-mouse)  sh "$S/mouse.sh" toggle >/dev/null 2>&1 ;;
   polkit)        # polkit themed|classic

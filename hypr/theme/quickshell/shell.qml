@@ -66,6 +66,29 @@ ShellRoot {
     readonly property real battPct: upOk ? upPct : batPct
     readonly property bool battCharging: upOk ? (upState === 1 || upState === 4 || upState === 5) : batCharging
 
+    // ---- Low battery warnings: a notification at 20%, 10% and 5% while the battery is discharging ----
+    // Each level is announced once; plugging in the charger (or climbing back above 25%) re-arms them.
+    // Switch them off in Settings > System > Battery (the file battery-warn-off in the state folder).
+    property int warnedLevel: 100
+    function checkBattery() {
+        if (!hasBatt) return
+        const pct = Math.round(battPct)
+        if (battCharging || pct > 25) { warnedLevel = 100; return }
+        let level = 100
+        for (const l of [20, 10, 5]) if (pct <= l) level = l
+        if (level >= warnedLevel) return
+        warnedLevel = level
+        const text = level === 20 ? ["normal", "battery-caution", "Battery low", pct + "% left. Plug in the charger soon."]
+                   : level === 10 ? ["critical", "battery-low", "Battery very low", pct + "% left. Plug in the charger now."]
+                   : ["critical", "battery-empty", "Battery almost empty", pct + "% left. The laptop will turn off soon: save your work and plug in."]
+        battWarnProc.command = ["sh", "-c", "test -e \"$1/battery-warn-off\" && exit 0; notify-send -u \"$2\" -i \"$3\" \"$4\" \"$5\"", "_", stateDir, text[0], text[1], text[2], text[3]]
+        battWarnProc.running = true
+    }
+    Process { id: battWarnProc }
+    onBattPctChanged: checkBattery()
+    onBattChargingChanged: checkBattery()
+    Timer { interval: 6000; running: true; onTriggered: root.checkBattery() }    // already low when the bar starts
+
     function fmtDur(sec) {
         sec = Math.round(sec)
         if (sec <= 0) return "calculating..."

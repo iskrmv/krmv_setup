@@ -68,7 +68,7 @@ Three rules keep the laziness honest:
 | **Power menu** | Power icon in the bar: lock, log out, sleep, reboot, power off |
 | **Lock screen** | `hyprlock`, themed. Locks automatically before sleep, so **closing the laptop lid locks the screen** (`hypridle`) |
 | **kitty** | Tokyo Night terminal theme |
-| **SDDM** | Login screen theme with your wallpaper |
+| **SDDM** | A minimal, animated, **responsive** login screen (everything scales with the screen and rearranges on narrow or portrait ones; icons are drawn, no icon font needed): the wallpaper follows the mouse a little, big clock whose digits roll with a blinking colon, one login block whose password field is just a transparent line with dots that pop in (eye button to show it, Caps Lock warning), every user clickable at the bottom (or Left / Right arrow keys), session and keyboard layout pickers, icon-only sleep / reboot / shut down that ask twice (amber, with a shrinking line), and a fade to black on login. The wallpaper can be a picture, an animated **gif** or a **video** (mp4, webm, mkv, mov; silent, looped). Put it in `hypr/wallpapers/sddm` and run `bash install.sh` again (a video also installs `qt6-multimedia` and its ffmpeg backend). Tune `dim` and `accent` in `/usr/share/sddm/themes/krmv-tokyo/theme.conf` |
 | **zsh** | oh-my-zsh + powerlevel10k + autosuggestions + syntax highlighting (emacs keys, Alt+Backspace deletes a word) |
 | **Dark mode** | GTK, Qt and websites follow the dark theme automatically |
 | **Aliases** | `pacman` = `sudo pacman`, `yoink` = `yay -S`, `yeet` = `yay -Rns`, `yago` = `yay -Ss`, `sweep` = deep clean (see below) |
@@ -107,6 +107,7 @@ Three rules keep the laziness honest:
 | Stretch only ONE game / give one game its own size | Put the launch option on that game only. Own size: `KRMV_STRETCH=1280x960 krmv-stretch %command%`; never stretch it: `KRMV_STRETCH=off krmv-stretch %command%` |
 | Mouse or touchpad speed, acceleration, scrolling, tap to click | `SUPER + I` → Input (everything is saved and comes back at login; "Mouse for games" = flat profile) |
 | Use a resolution that is not in the list | `SUPER + I` → Display → Resolution and refresh rate → Custom resolution... |
+| Low battery warnings | Automatic: a notification at 20%, 10% and 5% while discharging (each once; the charger re-arms them). Switch off in `SUPER + I` → System → Battery |
 | Change or turn off DNS | `SUPER + I` → DNS |
 | Download torrents in the terminal | `ALT + SPACE`, `run tork` |
 | See every shortcut | `SUPER + /` |
@@ -241,7 +242,7 @@ zsh/zshrc               -> ~/.zshrc
 
 - **Wallpapers:** put still images in `~/.config/hypr/wallpapers/desktop` and videos/GIFs in
   `~/.config/hypr/wallpapers/animated` (random one at login, `SUPER + W` for the next). `mpvpaper` handles the
-  animated files, `swaybg` the stills. For the login screen put an image in `wallpapers/sddm` and run `bash install.sh` again.
+  animated files, `swaybg` the stills. For the login screen put a picture, gif or video in `wallpapers/sddm` and run `bash install.sh` again.
 - **Desktop clock:** the look and settings are in `hypr/theme/quickshell/ClockFace.qml` (`showDay`, `showDate`, `showTime`, `use24Hour`, `timeDecor`, `textColor`, `sizeScale`). To move it press `SUPER + SHIFT + W` (or double-click it), drag it, press Enter: the place is remembered in `~/.local/state/krmv-setup/clock-position`. The day name uses the Anurati font, which `install.sh` downloads from the original KDE widget's repository (it is free for personal use, so it is not stored in this repo); the rest uses Poppins.
 - **Media in browsers:** works out of the box (Chrome, Firefox). For mpv install `mpv-mpris`.
 - **Colors / font:** the `theme` block at the top of `hypr/theme/quickshell/shell.qml` (one `icon` color for every icon).
