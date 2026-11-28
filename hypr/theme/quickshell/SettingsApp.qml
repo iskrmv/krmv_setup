@@ -11,12 +11,14 @@ PanelWindow {
     required property var theme
     property var widgets: []                       // [{ id, name, enabled }] from shell.qml
     signal closeRequested()
+    property var widgetOpts: ({})
+    signal optionChanged(string key, var value)
     signal widgetToggled(string id, bool on)
     signal moveWidgetsRequested()
 
     readonly property string api: Quickshell.env("HOME") + "/.config/hypr/scripts/settings-api.sh"
     property int page: 0
-    property var st: ({ night: false, mouse: false, polkitClassic: false, batteryWarn: true, stretch: { enabled: false, width: 1440, height: 1080 },
+    property var st: ({ night: false, mouse: false, polkitClassic: false, batteryWarn: true, animations: { preset: "sharp", window: "auto", workspace: "auto" }, phone: { auto: true, mounted: false, tool: true }, stretch: { enabled: false, width: 1440, height: 1080 },
                         layouts: "", input: { mouseSens: 0, mouseAccel: "adaptive", mouseNatural: false, mouseScroll: 1, leftHanded: false, tpNatural: true, tpTap: true, tpDwt: true, tpScroll: 0.5 }, monitors: [], geo: [], wifi: [], sinks: [], defaultSink: "", dns: "" })
     property var pending: null                     // a display change waiting for "Keep / Revert": { name, oldRec, newRec }
     property int pendingLeft: 0
@@ -426,6 +428,15 @@ PanelWindow {
 
                     UiCard {
                         theme: app.theme
+                        icon: "\uf186"; title: "Night mode"
+                        UiRow {
+                            theme: app.theme; title: "Warmer colors in the evening"; subtitle: "Less blue light for your eyes. Applies to the whole screen."
+                            Toggle { theme: app.theme; on: app.st.night; onToggled: app.act(["toggle-night"]) }
+                        }
+                    }
+
+                    UiCard {
+                        theme: app.theme
                         icon: "\uf0b2"; title: "Stretched resolution for games"
                         subtitle: "Play at 4:3 and stretch it over the whole 16:9 screen. Add  krmv-stretch %command%  to the game's Steam launch options once; this switch then turns it on and off for that game."
                         UiRow {
@@ -756,6 +767,35 @@ PanelWindow {
                         }
                         UiButton { theme: app.theme; icon: "\uf047"; text: "Move the widgets"; onClicked: app.moveWidgetsRequested() }
                     }
+                    UiCard {
+                        theme: app.theme
+                        icon: "\uf017"; title: "Clock widget"
+                        subtitle: "How the big clock on the desktop looks."
+                        UiRow {
+                            theme: app.theme; title: "Show the day"; subtitle: "FRIDAY in big letters."
+                            Toggle { theme: app.theme; on: app.widgetOpts.clockDay !== false; onToggled: app.optionChanged("clockDay", !(app.widgetOpts.clockDay !== false)) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Show the date"; subtitle: "27 NOV 2026 under the day."
+                            Toggle { theme: app.theme; on: app.widgetOpts.clockDate !== false; onToggled: app.optionChanged("clockDate", !(app.widgetOpts.clockDate !== false)) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "24-hour time"; subtitle: "20:22 instead of 08:22 PM."
+                            Toggle { theme: app.theme; on: app.widgetOpts.clock24h === true; onToggled: app.optionChanged("clock24h", !(app.widgetOpts.clock24h === true)) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Dashes around the time"; subtitle: "- 20:22 -"
+                            Toggle { theme: app.theme; on: app.widgetOpts.clockDecor !== false; onToggled: app.optionChanged("clockDecor", !(app.widgetOpts.clockDecor !== false)) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Size"
+                            UiSegment {
+                                theme: app.theme; current: app.widgetOpts.clockSize ? app.widgetOpts.clockSize : 1
+                                options: [ { label: "Small", value: 0.75 }, { label: "Normal", value: 1 }, { label: "Large", value: 1.3 } ]
+                                onPicked: v => app.optionChanged("clockSize", v)
+                            }
+                        }
+                    }
                 }
 
                 // =================================================== PRIVACY
@@ -998,14 +1038,6 @@ PanelWindow {
                     Layout.fillWidth: true; spacing: 16
                     UiCard {
                         theme: app.theme
-                        icon: "\uf186"; title: "Screen"
-                        UiRow {
-                            theme: app.theme; title: "Night mode"; subtitle: "Warmer colors in the evening."
-                            Toggle { theme: app.theme; on: app.st.night; onToggled: app.act(["toggle-night"]) }
-                        }
-                    }
-                    UiCard {
-                        theme: app.theme
                         icon: "\uf023"; title: "Password dialog"
                         subtitle: "The window that asks for your password (pkexec, GParted, Ventoy...)."
                         UiRow {
@@ -1016,6 +1048,62 @@ PanelWindow {
                                 onPicked: v => app.act(["polkit", v])
                             }
                         }
+                    }
+                    UiCard {
+                        theme: app.theme
+                        icon: "\uf0d0"; title: "Animations"
+                        subtitle: "How windows open and close, how workspaces change, how menus fade. Applies at once."
+                        UiRow {
+                            theme: app.theme; title: "Preset"
+                            subtitle: app.st.animations.preset === "off" ? "No animations at all."
+                                      : app.st.animations.preset === "sharp" ? "Short and crisp. The default."
+                                      : app.st.animations.preset === "classic" ? "Hyprland's own animations, as they were before."
+                                      : app.st.animations.preset === "calm" ? "Quiet fades, easy on the eyes."
+                                      : app.st.animations.preset === "smooth" ? "Longer, softer landings."
+                                      : "Windows bounce in, workspaces slide across."
+                            UiSegment {
+                                theme: app.theme; current: app.st.animations.preset
+                                options: [ { label: "Off", value: "off" }, { label: "Sharp", value: "sharp" }, { label: "Classic", value: "classic" },
+                                           { label: "Calm", value: "calm" }, { label: "Smooth", value: "smooth" }, { label: "Playful", value: "playful" } ]
+                                onPicked: v => app.act(["animations", "preset", v])
+                            }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Window style"; subtitle: "How a window appears. Auto uses the preset's own."
+                            UiSegment {
+                                theme: app.theme; current: app.st.animations.window
+                                options: [ { label: "Auto", value: "auto" }, { label: "Pop", value: "pop" }, { label: "Slide", value: "slide" },
+                                           { label: "Gnome", value: "gnome" }, { label: "Fade", value: "fade" } ]
+                                onPicked: v => app.act(["animations", "window", v])
+                            }
+                        }
+                        UiRow {
+                            theme: app.theme; title: "Workspace style"; subtitle: "How the screen changes when you switch workspace."
+                            UiSegment {
+                                theme: app.theme; current: app.st.animations.workspace
+                                options: [ { label: "Auto", value: "auto" }, { label: "Slide", value: "slide" }, { label: "Vertical", value: "vertical" },
+                                           { label: "Fade", value: "fade" }, { label: "Slide + fade", value: "slidefade" } ]
+                                onPicked: v => app.act(["animations", "workspace", v])
+                            }
+                        }
+                    }
+                    UiCard {
+                        theme: app.theme
+                        icon: "\uf10b"; title: "Phone"
+                        subtitle: "Plug the phone in, unlock it and choose File transfer: its files appear in the folder ~/Phone, ready for yazi. USB sticks are not touched."
+                        UiRow {
+                            theme: app.theme; title: "Mount phones automatically"
+                            subtitle: app.st.phone.tool ? "Switch it off if you never want a phone mounted by itself." : "jmtpfs is missing: run the setup installer again."
+                            Toggle { theme: app.theme; on: app.st.phone.auto; onToggled: app.act(["phone", "toggle"]) }
+                        }
+                        UiRow {
+                            theme: app.theme; title: app.st.phone.mounted ? "A phone is mounted" : "No phone mounted"
+                            subtitle: app.st.phone.mounted ? "~/Phone" : "Connect it, unlock it and choose File transfer, or press Mount now."
+                            UiButton { theme: app.theme; text: "Mount now"; visible: !app.st.phone.mounted; onClicked: app.act(["phone", "mount"]) }
+                            UiButton { theme: app.theme; text: "Open in yazi"; visible: app.st.phone.mounted; kind: "primary"; onClicked: app.act(["open", "phone"]) }
+                            UiButton { theme: app.theme; text: "Unmount"; kind: app.st.phone.mounted ? "danger" : "secondary"; active: app.st.phone.mounted; onClicked: app.act(["phone", "umount"]) }
+                        }
+                        UiButton { theme: app.theme; kind: "ghost"; text: "It does not work: copy diagnostics"; onClicked: app.act(["phone", "diagnose"]) }
                     }
                     UiCard {
                         theme: app.theme

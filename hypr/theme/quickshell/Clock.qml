@@ -28,17 +28,22 @@ Item {
     }
     function hasNote(day) {
         if (day <= 0 || clock.engine === null || clock.engine === undefined) return false
-        const d = new Date(minClock.date.getFullYear(), minClock.date.getMonth(), day)
+        const d = new Date(clock.nowDate.getFullYear(), clock.nowDate.getMonth(), day)
         return clock.engine.hasReminder(clock.engine.noteKey(d))
     }
 
-    SystemClock { id: minClock; precision: SystemClock.Minutes }
+    // our own one-second check (SystemClock could stay on the old minute for up to 30 s after a lock or sleep)
+    property date nowDate: new Date()
+    Timer {
+        interval: 1000; running: true; repeat: true
+        onTriggered: { const d = new Date(); if (d.getMinutes() !== clock.nowDate.getMinutes() || d.getDate() !== clock.nowDate.getDate() || d.getHours() !== clock.nowDate.getHours()) clock.nowDate = d }
+    }
     SystemClock { id: secClock; enabled: area.containsMouse; precision: SystemClock.Seconds }
 
     Text {
         id: label
         anchors.centerIn: parent
-        text: Qt.formatDateTime(minClock.date, "HH:mm")
+        text: Qt.formatDateTime(clock.nowDate, "HH:mm")
         color: clock.theme.icon
         font.family: clock.theme.font
         font.pixelSize: clock.theme.size
@@ -76,7 +81,7 @@ Item {
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
-                    text: clock.dayNames[minClock.date.getDay()] + ", " + minClock.date.getDate() + " " + clock.monthNames[minClock.date.getMonth()] + " " + minClock.date.getFullYear()
+                    text: clock.dayNames[clock.nowDate.getDay()] + ", " + clock.nowDate.getDate() + " " + clock.monthNames[clock.nowDate.getMonth()] + " " + clock.nowDate.getFullYear()
                     color: clock.theme.fg
                     font.family: clock.theme.font; font.pixelSize: clock.theme.size
                 }
@@ -96,28 +101,28 @@ Item {
                         }
                     }
                     Repeater {
-                        model: clock.cells(minClock.date)
+                        model: clock.cells(clock.nowDate)
                         delegate: Item {
                             required property int modelData
                             width: 34; height: 28
                             Rectangle {
                                 anchors.centerIn: parent
                                 width: 26; height: 26; radius: 0
-                                visible: modelData === minClock.date.getDate()
+                                visible: modelData === clock.nowDate.getDate()
                                 color: clock.theme.icon
                             }
                             Text {
                                 anchors.centerIn: parent
                                 text: modelData > 0 ? modelData : ""
-                                color: modelData === minClock.date.getDate() ? clock.theme.bg : clock.theme.fg
-                                font.bold: modelData === minClock.date.getDate()
+                                color: modelData === clock.nowDate.getDate() ? clock.theme.bg : clock.theme.fg
+                                font.bold: modelData === clock.nowDate.getDate()
                                 font.family: clock.theme.font; font.pixelSize: clock.theme.size - 1
                             }
                             Rectangle {
                                 anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 1 }
                                 width: 4; height: 4; radius: 0
                                 visible: clock.hasNote(modelData)
-                                color: modelData === minClock.date.getDate() ? clock.theme.bg : clock.theme.icon
+                                color: modelData === clock.nowDate.getDate() ? clock.theme.bg : clock.theme.icon
                             }
                         }
                     }

@@ -13,6 +13,7 @@ PanelWindow {
     required property var theme
     property real startX: 0
     property real startY: 0
+    property var clockOpts: ({})
     property real faceW: 600
     property real faceH: 200
     property real netStartX: 80
@@ -119,7 +120,13 @@ PanelWindow {
             visible: mover.clockOn
             x: mover.startX; y: mover.startY
             width: mover.faceW; height: mover.faceH
-            ClockFace { anchors.fill: parent }
+            ClockFace {
+                anchors.fill: parent
+                showDay: mover.clockOpts.clockDay !== false; showDate: mover.clockOpts.clockDate !== false
+                use24Hour: mover.clockOpts.clock24h === true
+                timeDecor: mover.clockOpts.clockDecor === false ? "" : "-"
+                sizeScale: mover.clockOpts.clockSize ? mover.clockOpts.clockSize : 1
+            }
         }
 
         Text {

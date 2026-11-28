@@ -24,6 +24,12 @@ hl.bind(mod .. " + SHIFT + right", hl.dsp.window.move({ direction = "right" }))
 hl.bind(mod .. " + SHIFT + up",    hl.dsp.window.move({ direction = "up" }))
 hl.bind(mod .. " + SHIFT + down",  hl.dsp.window.move({ direction = "down" }))
 
+-- Resize the window (SUPER + CTRL + arrows), tiled or floating; hold the keys to keep resizing
+hl.bind(mod .. " + CTRL + left",  hl.dsp.window.resize({ x = -40, y = 0,   relative = true }), { repeating = true })
+hl.bind(mod .. " + CTRL + right", hl.dsp.window.resize({ x = 40,  y = 0,   relative = true }), { repeating = true })
+hl.bind(mod .. " + CTRL + up",    hl.dsp.window.resize({ x = 0,   y = -40, relative = true }), { repeating = true })
+hl.bind(mod .. " + CTRL + down",  hl.dsp.window.resize({ x = 0,   y = 40,  relative = true }), { repeating = true })
+
 -- Focus (arrow keys)
 hl.bind(mod .. " + left",  hl.dsp.focus({ direction = "left" }))
 hl.bind(mod .. " + right", hl.dsp.focus({ direction = "right" }))

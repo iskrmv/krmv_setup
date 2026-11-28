@@ -24,7 +24,13 @@ Item {
     FontLoader { id: anurati; source: "file://" + Quickshell.env("HOME") + "/.local/share/fonts/Anurati.otf" }
     readonly property string dayFont: anurati.status === FontLoader.Ready ? anurati.name : "Poppins"
 
-    SystemClock { id: clock; precision: SystemClock.Minutes }
+    // The time comes from our own one-second check, not from SystemClock: after the screen was locked or the laptop slept,
+    // SystemClock could show the old minute for up to half a minute. This shows the right time within a second.
+    property date nowDate: new Date()
+    Timer {
+        interval: 1000; running: true; repeat: true
+        onTriggered: { const d = new Date(); if (d.getMinutes() !== face.nowDate.getMinutes() || d.getDate() !== face.nowDate.getDate() || d.getHours() !== face.nowDate.getHours()) face.nowDate = d }
+    }
 
     ColumnLayout {
         id: col
@@ -34,7 +40,7 @@ Item {
         Text {
             visible: face.showDay
             Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatDateTime(clock.date, "dddd").toUpperCase()
+            text: Qt.formatDateTime(face.nowDate, "dddd").toUpperCase()
             color: face.textColor
             font.family: face.dayFont
             font.pixelSize: 72 * face.sizeScale
@@ -44,7 +50,7 @@ Item {
         Text {
             visible: face.showDate
             Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatDateTime(clock.date, "dd MMM yyyy").toUpperCase()
+            text: Qt.formatDateTime(face.nowDate, "dd MMM yyyy").toUpperCase()
             color: face.textColor
             font.family: "Poppins"
             font.pixelSize: 19 * face.sizeScale
@@ -55,7 +61,7 @@ Item {
             visible: face.showTime
             Layout.alignment: Qt.AlignHCenter
             text: (face.timeDecor !== "" ? face.timeDecor + " " : "")
-                  + Qt.formatDateTime(clock.date, face.use24Hour ? "hh:mm" : "hh:mm AP")
+                  + Qt.formatDateTime(face.nowDate, face.use24Hour ? "hh:mm" : "hh:mm AP")
                   + (face.timeDecor !== "" ? " " + face.timeDecor : "")
             color: face.textColor
             font.family: "Poppins"

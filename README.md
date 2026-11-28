@@ -108,6 +108,10 @@ Three rules keep the laziness honest:
 | Mouse or touchpad speed, acceleration, scrolling, tap to click | `SUPER + I` → Input (everything is saved and comes back at login; "Mouse for games" = flat profile) |
 | Use a resolution that is not in the list | `SUPER + I` → Display → Resolution and refresh rate → Custom resolution... |
 | Low battery warnings | Automatic: a notification at 20%, 10% and 5% while discharging (each once; the charger re-arms them). Switch off in `SUPER + I` → System → Battery |
+| Change how animated the desktop is | `SUPER + I` → System → Animations. **Preset:** Off, **Sharp** (default: short and crisp), **Classic** (Hyprland's own animations, the look from before), Calm, Smooth, Playful. **Window style:** Auto, Pop, Slide, Gnome, Fade. **Workspace style:** Auto, Slide, Vertical, Fade, Slide + fade. It applies at once. Resizing and dragging are animated too. Edit the curves in `conf/animations.lua` |
+| Resize a tiled or floating window | `SUPER + CTRL + arrows` (hold to keep resizing); or `SUPER` + right mouse drag |
+| Open my phone's files in yazi | Plug it in, unlock it, choose **File transfer**: it is mounted in `~/Phone` by itself (`yazi ~/Phone`). Only phones / MTP devices, never USB sticks. `SUPER + I` → System → Phone has the switch, **Mount now**, **Unmount** and a **copy diagnostics** button; from a terminal: `sh ~/.config/hypr/scripts/phone-mount.sh umount` (or `mount`, `diagnose`). Log: `~/.local/state/krmv-setup/phone-mount.log` |
+| Change what the desktop clock shows | `SUPER + I` → Widgets → Clock widget: day, date, 24-hour or AM/PM, dashes, size |
 | Change or turn off DNS | `SUPER + I` → DNS |
 | Download torrents in the terminal | `ALT + SPACE`, `run tork` |
 | See every shortcut | `SUPER + /` |
@@ -119,6 +123,7 @@ Three rules keep the laziness honest:
 | Telegram / Discord notification sounds ignore my app volume | `scripts/appvol-daemon.sh` (started at login) applies your remembered per-app volume the moment an app opens a NEW sound stream, so short sounds obey it too |
 | App volume does nothing | Per-app sliders (bar volume popup and the media widget) set the volume through three paths, the last one is `scripts/appvol.sh` (PulseAudio sink inputs). Check by hand: `pactl list sink-inputs short`, then `sh ~/.config/hypr/scripts/appvol.sh firefox 40` |
 | Media controls (bar popup and desktop widget) | Only what the player supports is shown: shuffle and repeat (Spotify, VLC), back / forward 10 s (YouTube, videos, podcasts), play / pause / next / previous, the player's own volume, and a button that brings its window to the front. A YouTube tab simply has no shuffle or repeat |
+| Night mode | `SUPER + I` → Display → Night mode |
 | Show net speed / media widget | `SUPER + I` → Desktop widgets |
 | Move the clock, net speed or media widget | `SUPER + SHIFT + W`, drag each one, `Enter` saves, `R` resets all |
 | Allow or block an app's location | `SUPER + I` → Location |

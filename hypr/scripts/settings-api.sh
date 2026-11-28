@@ -16,6 +16,11 @@ state() {
   [ "$(sh "$S/mouse.sh" status 2>/dev/null)" = ON ] && mouse=true || mouse=false
   [ -e "$STATE/polkit-stock" ] && classic=true || classic=false
   [ -e "$STATE/battery-warn-off" ] && bwarn=false || bwarn=true
+  pm_auto=false; [ "$(sh "$S/phone-mount.sh" status 2>/dev/null)" = on ] && pm_auto=true
+  pm_mounted=false; mountpoint -q "$HOME/Phone" 2>/dev/null && ls "$HOME/Phone" >/dev/null 2>&1 && pm_mounted=true
+  pm_tool=false; command -v jmtpfs >/dev/null 2>&1 && pm_tool=true
+  aget() { v="$(sed -n "s/^$1=//p" "$STATE/animations.conf" 2>/dev/null | head -n1)"; echo "${v:-$2}"; }
+  anim="$(aget preset sharp)"; awin="$(aget window auto)"; aws="$(aget workspace auto)"
   [ "$(sget enabled)" = 1 ] && st_on=true || st_on=false
   sw="$(sget width)"; sh_="$(sget height)"; [ -n "$sw" ] || { sw=1440; sh_=1080; }
   st_method="$(sget method)"; [ -n "$st_method" ] || st_method=wayland
@@ -49,11 +54,11 @@ state() {
   defsink="$(pactl get-default-sink 2>/dev/null)"
   dns="$(dns status 2>&1 | head -60)"
 
-  jq -n -c --argjson night "$night" --argjson mouse "$mouse" --argjson classic "$classic" --argjson bwarn "$bwarn" \
+  jq -n -c --argjson night "$night" --argjson mouse "$mouse" --argjson classic "$classic" --argjson bwarn "$bwarn" --arg anim "$anim" --arg awin "$awin" --arg aws "$aws" --argjson pmAuto "$pm_auto" --argjson pmMounted "$pm_mounted" --argjson pmTool "$pm_tool" \
     --argjson stOn "$st_on" --arg stW "$sw" --arg stH "$sh_" --arg stM "$st_method" --argjson input "$input" --arg layouts "$layouts" \
     --argjson monitors "$monitors" --argjson geo "$geo" --argjson wifi "$wifi" \
     --argjson sinks "$sinks" --arg defsink "$defsink" --arg dns "$dns" \
-    '{night: $night, mouse: $mouse, polkitClassic: $classic, batteryWarn: $bwarn,
+    '{night: $night, mouse: $mouse, polkitClassic: $classic, batteryWarn: $bwarn, animations: {preset: $anim, window: $awin, workspace: $aws}, phone: {auto: $pmAuto, mounted: $pmMounted, tool: $pmTool},
       stretch: {enabled: $stOn, width: ($stW | tonumber), height: ($stH | tonumber), method: $stM}, layouts: $layouts,
       monitors: $monitors, input: $input, geo: $geo, wifi: $wifi, sinks: $sinks, defaultSink: $defsink, dns: $dns}'
 }
@@ -79,6 +84,18 @@ case "${1:-state}" in
     touch "$STATE/input.conf"
     if grep -q "^$key=" "$STATE/input.conf"; then sed -i "s|^$key=.*|$key=$val|" "$STATE/input.conf"; else echo "$key=$val" >> "$STATE/input.conf"; fi
     hyprctl eval "hl.config({ input = { $lua } })" >/dev/null 2>&1 ;;
+  animations)    # animations preset <name> | window <style> | workspace <style>   (saved, then the config is reloaded)
+    case "$2:$3" in
+      preset:off|preset:sharp|preset:classic|preset:calm|preset:smooth|preset:playful) ;;
+      window:auto|window:pop|window:slide|window:gnome|window:fade) ;;
+      workspace:auto|workspace:slide|workspace:vertical|workspace:fade|workspace:slidefade) ;;
+      *) exit 1 ;;
+    esac
+    touch "$STATE/animations.conf"
+    if grep -q "^$2=" "$STATE/animations.conf"; then sed -i "s|^$2=.*|$2=$3|" "$STATE/animations.conf"; else echo "$2=$3" >> "$STATE/animations.conf"; fi
+    hyprctl reload >/dev/null 2>&1
+    # a reload resets live-only settings: bring the game mouse profile back
+    sh "$S/mouse.sh" restore >/dev/null 2>&1 & ;;
   battery-warn)  # battery-warn toggle | test
     case "$2" in
       toggle) if [ -e "$STATE/battery-warn-off" ]; then rm -f "$STATE/battery-warn-off"; else : > "$STATE/battery-warn-off"; fi ;;
@@ -173,6 +190,7 @@ case "${1:-state}" in
       shortcuts)  sh "$S/settings.sh" shortcuts ;;
       wifi-new)   sh "$S/network.sh" connect ;;
       layouts)    sh "$S/layout.sh" ;;
+      phone)      sh "$S/run-in-terminal.sh" yazi "$HOME/Phone" ;;
       cleanup)    sh "$S/run-in-terminal.sh" bash -c "sh $S/cleanup.sh; echo; read -r -p 'Press Enter to close ' _" ;;
     esac ;;
   *) echo "Usage: $0 state | toggle-night | toggle-mouse | polkit | stretch | dns | display | geo | wifi | audio | open"; exit 1 ;;

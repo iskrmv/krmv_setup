@@ -29,3 +29,10 @@ hl.layer_rule({
   match = { namespace = "^selection$" },
   no_anim = true,
 })
+
+-- the frozen screen of the screenshot tool must appear and vanish instantly, without any transition
+hl.layer_rule({
+  name = "no-picker-fade",
+  match = { namespace = "^hyprpicker$" },
+  no_anim = true,
+})

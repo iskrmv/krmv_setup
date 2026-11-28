@@ -586,6 +586,24 @@ ShellRoot {
     }
     Process { id: widgetsSave }
 
+    // Options of the desktop widgets (Settings > Widgets): the clock's day / date, 12 or 24 hour time, decoration and size
+    property var widgetOpts: ({ clockDay: true, clockDate: true, clock24h: false, clockDecor: true, clockSize: 1 })
+    Process {
+        command: ["sh", "-c", "cat \"$1\" 2>/dev/null", "_", root.stateDir + "/widget-options.json"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: { try { root.widgetOpts = Object.assign({}, root.widgetOpts, JSON.parse(text)) } catch (e) {} }
+        }
+    }
+    Process { id: optsSave }
+    function setWidgetOption(key, value) {
+        const o = Object.assign({}, widgetOpts)
+        o[key] = value
+        widgetOpts = o
+        optsSave.command = ["sh", "-c", "mkdir -p \"$1\" && printf '%s' \"$2\" > \"$1/widget-options.json\"", "_", stateDir, JSON.stringify(o)]
+        optsSave.running = true
+    }
+
     // Password dialog (polkit agent) in the bar's theme. Loaded on its own so that an old Quickshell without the
     // polkit module cannot break the bar: then the stock hyprpolkitagent is started instead.
     Process {
@@ -636,6 +654,11 @@ ShellRoot {
         visible: !root.moveMode && root.widgetEnabled.clock !== false
         posX: root.clockX
         posY: root.clockY
+        showDay: root.widgetOpts.clockDay !== false
+        showDate: root.widgetOpts.clockDate !== false
+        use24Hour: root.widgetOpts.clock24h === true
+        withDecor: root.widgetOpts.clockDecor !== false
+        sizeScale: root.widgetOpts.clockSize ? root.widgetOpts.clockSize : 1
         onMoveRequested: root.moveMode = true
     }
     DesktopWidgetWindow {
@@ -669,6 +692,8 @@ ShellRoot {
         visible: root.settingsOpen
         theme: root.theme
         widgets: root.widgetList
+        widgetOpts: root.widgetOpts
+        onOptionChanged: (key, value) => root.setWidgetOption(key, value)
         onCloseRequested: root.settingsOpen = false
         onWidgetToggled: (id, on) => root.setWidgetEnabled(id, on)
         onMoveWidgetsRequested: { root.settingsOpen = false; root.moveMode = true }
@@ -683,6 +708,7 @@ ShellRoot {
         visible: root.moveMode
         theme: root.theme
         widgets: root.widgetList
+        clockOpts: root.widgetOpts
         startX: clockWidget.curX
         startY: clockWidget.curY
         faceW: clockWidget.width
